@@ -146,23 +146,6 @@ export default function Home() {
           <p className="hero-copy">One clear view of the market, ranked by value, condition signals and confidence—not by who paid to be first.</p>
           <a className="hero-cta" href="#discover">See the best deals <span aria-hidden="true">↓</span></a>
         </div>
-        <div className="market-visual" aria-hidden="true">
-          <div className="visual-topline"><span>Market signal</span><b>BLR / LIVE</b></div>
-          <div className="market-orbit orbit-one" />
-          <div className="market-orbit orbit-two" />
-          <div className="market-orbit orbit-three" />
-          <div className="market-node node-one"><i />₹61.75L</div>
-          <div className="market-node node-two"><i />30,288 km</div>
-          <div className="market-node node-three"><i />92 / 100</div>
-          <div className="vehicle-trace">
-            <span className="trace-roof" />
-            <span className="trace-body" />
-            <i className="trace-wheel wheel-one" />
-            <i className="trace-wheel wheel-two" />
-          </div>
-          <div className="visual-score"><span>Deal intelligence</span><strong>22</strong><small>cars ranked now</small></div>
-          <div className="visual-footer"><span>Price</span><span>Age</span><span>Kilometres</span><span>Confidence</span></div>
-        </div>
         <p className="hero-status"><span /> Independent market view · no promoted rankings</p>
       </section>
 
