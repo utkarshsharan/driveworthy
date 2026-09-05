@@ -7,7 +7,6 @@ type Brand = "BMW" | "Mercedes-Benz" | "Audi" | "Volvo" | "Lexus";
 
 type Listing = {
   id: string;
-  rank: number;
   brand: Brand;
   model: string;
   variant: string;
@@ -15,7 +14,7 @@ type Listing = {
   kilometres: number;
   fuel: string;
   transmission: string;
-  owners: number;
+  owners: number | null;
   price: number;
   fairLow: number;
   fairHigh: number;
@@ -30,152 +29,36 @@ type Listing = {
 };
 
 const MODEL_OPTIONS: Record<Brand, string[]> = {
-  BMW: ["2 Series", "3 Series", "5 Series", "7 Series", "X1", "X3", "X5", "X7", "M340i"],
-  "Mercedes-Benz": ["A-Class", "C-Class", "E-Class", "S-Class", "GLA", "GLC", "GLE", "GLS"],
+  BMW: ["2 Series", "3 Series", "5 Series", "6 Series", "7 Series", "X1", "X3", "X5", "X7", "M340i"],
+  "Mercedes-Benz": ["A-Class", "B-Class", "C-Class", "E-Class", "S-Class", "GLA", "GLC", "GLE", "GLS", "EQB", "EQC", "EQS", "V-Class"],
   Audi: ["A4", "A6", "A8", "Q3", "Q5", "Q7", "Q8"],
   Volvo: ["S60", "S90", "XC40", "XC60", "XC90"],
   Lexus: ["ES", "NX", "RX", "LS"],
 };
 
 const LISTINGS: Listing[] = [
-  {
-    id: "bmw-m340i-9g",
-    rank: 1,
-    brand: "BMW",
-    model: "M340i",
-    variant: "xDrive",
-    year: 2023,
-    kilometres: 30288,
-    fuel: "Petrol",
-    transmission: "Automatic",
-    owners: 1,
-    price: 61.75,
-    fairLow: 64.1,
-    fairHigh: 68.2,
-    score: 92,
-    confidence: "High",
-    source: "9th Gear",
-    sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/bmw-m-340i-xdrive/25632/",
-    imageUrl: "https://www.9thgear.co.in/images/upload/cars/69b513f028986.webp",
-    positive: "Priced below comparable Bengaluru inventory",
-    concern: "Verify service history and tyre life",
-    freshness: "Checked today",
-  },
-  {
-    id: "audi-q3-luxe",
-    rank: 2,
-    brand: "Audi",
-    model: "Q3",
-    variant: "40 TFSI Q Tech",
-    year: 2023,
-    kilometres: 5956,
-    fuel: "Petrol",
-    transmission: "Automatic",
-    owners: 1,
-    price: 44,
-    fairLow: 44.8,
-    fairHigh: 47.3,
-    score: 89,
-    confidence: "High",
-    source: "Luxe Cars",
-    sourceUrl: "https://luxecars.co.in/catalog/used-luxury-cars/audi-q3-2014",
-    imageUrl: "https://luxecars.blr1.cdn.digitaloceanspaces.com/65d080ffebf233a7670051daf013256b.jpeg",
-    positive: "Very low kilometres for its age",
-    concern: "Confirm warranty transfer eligibility",
-    freshness: "Checked today",
-  },
-  {
-    id: "lexus-es-luxe",
-    rank: 3,
-    brand: "Lexus",
-    model: "ES",
-    variant: "300h Luxury",
-    year: 2021,
-    kilometres: 7979,
-    fuel: "Hybrid",
-    transmission: "Automatic",
-    owners: 1,
-    price: 45.5,
-    fairLow: 45.2,
-    fairHigh: 48.9,
-    score: 86,
-    confidence: "Medium",
-    source: "Luxe Cars",
-    sourceUrl: "https://luxecars.co.in/catalog/used-luxury-cars/LEXUS-ES%20300H-3606",
-    imageUrl: "https://luxecars.blr1.cdn.digitaloceanspaces.com/919d0fd8ea323f9636bdbe425a32453f.jpeg",
-    positive: "Low-use hybrid with strong luxury value",
-    concern: "Fewer local comparables reduce confidence",
-    freshness: "Checked today",
-  },
-  {
-    id: "bmw-x1-9g",
-    rank: 4,
-    brand: "BMW",
-    model: "X1",
-    variant: "sDrive20d",
-    year: 2020,
-    kilometres: 40911,
-    fuel: "Diesel",
-    transmission: "Automatic",
-    owners: 1,
-    price: 27.75,
-    fairLow: 27.4,
-    fairHigh: 30.1,
-    score: 82,
-    confidence: "High",
-    source: "9th Gear",
-    sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/bmw-x1-sdrive-20d/25655/",
-    imageUrl: "https://www.9thgear.co.in/images/upload/cars/69e383e053204.webp",
-    positive: "Competitive entry price for the segment",
-    concern: "Inspect diesel usage and suspension wear",
-    freshness: "Checked today",
-  },
-  {
-    id: "mercedes-e200-luxe",
-    rank: 5,
-    brand: "Mercedes-Benz",
-    model: "E-Class",
-    variant: "E 200 Exclusive",
-    year: 2021,
-    kilometres: 43026,
-    fuel: "Petrol",
-    transmission: "Automatic",
-    owners: 1,
-    price: 48,
-    fairLow: 47.2,
-    fairHigh: 50.6,
-    score: 78,
-    confidence: "Medium",
-    source: "Luxe Cars",
-    sourceUrl: "https://luxecars.co.in/catalog/used-luxury-cars",
-    imageUrl: "https://luxecars.blr1.cdn.digitaloceanspaces.com/e756034e2c4803ec69f45778151b1098.jpeg",
-    positive: "Desirable trim with sensible asking price",
-    concern: "Mileage is above the shortlisted-set median",
-    freshness: "Checked today",
-  },
-  {
-    id: "mercedes-gla-9g",
-    rank: 6,
-    brand: "Mercedes-Benz",
-    model: "GLA",
-    variant: "220d 4MATIC",
-    year: 2018,
-    kilometres: 78263,
-    fuel: "Diesel",
-    transmission: "Automatic",
-    owners: 2,
-    price: 22.75,
-    fairLow: 21.8,
-    fairHigh: 24.1,
-    score: 69,
-    confidence: "Medium",
-    source: "9th Gear",
-    sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/mercedes-benz-gla-220d-4matic/25656/",
-    imageUrl: "https://www.9thgear.co.in/images/upload/cars/69e76c0b50e24.webp",
-    positive: "Accessible price for a premium AWD SUV",
-    concern: "Higher kilometres and two-owner history",
-    freshness: "Checked today",
-  },
+  { id: "bmw-m340i-9g", brand: "BMW", model: "M340i", variant: "xDrive", year: 2023, kilometres: 30288, fuel: "Petrol", transmission: "Automatic", owners: null, price: 61.75, fairLow: 64.1, fairHigh: 68.2, score: 92, confidence: "High", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/bmw-m-340i-xdrive/25632/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/69b513f028986.webp", positive: "Priced below similar M340i listings", concern: "Ownership count is not disclosed", freshness: "Checked 5 Sep" },
+  { id: "mercedes-a200-9g", brand: "Mercedes-Benz", model: "A-Class", variant: "A 200", year: 2024, kilometres: 10650, fuel: "Petrol", transmission: "Automatic", owners: null, price: 39.75, fairLow: 40.4, fairHigh: 43.2, score: 91, confidence: "High", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/mercedes-benz-a200/25742/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a82ec7f16da1.webp", positive: "Young car with low kilometres", concern: "Ownership count is not disclosed", freshness: "Checked 5 Sep" },
+  { id: "bmw-530li-luxe", brand: "BMW", model: "5 Series", variant: "530Li M Sport", year: 2025, kilometres: 9050, fuel: "Petrol", transmission: "Automatic", owners: 1, price: 73, fairLow: 74.2, fairHigh: 78.5, score: 90, confidence: "High", source: "Luxe Cars", sourceUrl: "https://luxecars.co.in/catalog/used-luxury-cars/bmw-530li-5431", imageUrl: "https://luxecars.blr1.cdn.digitaloceanspaces.com/59c3cecc467a10336f27960931e42b9a.jpg", positive: "Current-generation, low-use one-owner car", concern: "Confirm manufacturer warranty transfer", freshness: "Checked 5 Sep" },
+  { id: "volvo-xc40-luxe", brand: "Volvo", model: "XC40", variant: "B4", year: 2023, kilometres: 22311, fuel: "Petrol", transmission: "Automatic", owners: 2, price: 35.4, fairLow: 36.1, fairHigh: 39.2, score: 89, confidence: "High", source: "Luxe Cars", sourceUrl: "https://luxecars.co.in/catalog/used-luxury-cars/volvo-xc40-4431", imageUrl: "https://luxecars.blr1.cdn.digitaloceanspaces.com/bcf617c944d0fbf319b714a86e4a7e08.jpg", positive: "Strong asking price for age and kilometres", concern: "Two-owner history needs verification", freshness: "Checked 5 Sep" },
+  { id: "mercedes-glc-low-km-9g", brand: "Mercedes-Benz", model: "GLC", variant: "220d 4MATIC", year: 2022, kilometres: 31800, fuel: "Diesel", transmission: "Automatic", owners: null, price: 47.75, fairLow: 48.1, fairHigh: 52.4, score: 88, confidence: "High", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/mercedes-benz-glc-220d-4matic/25747/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a8997710f39a.webp", positive: "Good kilometres for a diesel GLC", concern: "Ownership count is not disclosed", freshness: "Checked 5 Sep" },
+  { id: "lexus-es-luxe", brand: "Lexus", model: "ES", variant: "300h Luxury", year: 2022, kilometres: 15364, fuel: "Hybrid", transmission: "Automatic", owners: 1, price: 47, fairLow: 47.5, fairHigh: 51.3, score: 87, confidence: "Medium", source: "Luxe Cars", sourceUrl: "https://luxecars.co.in/catalog/used-luxury-cars/lexus-es300h-3339", imageUrl: "https://luxecars.blr1.cdn.digitaloceanspaces.com/2da1cea88b3c2ac07619fa852ea0d425.jpg", positive: "Low-use, one-owner hybrid", concern: "Fewer Bengaluru comparables lower confidence", freshness: "Checked 5 Sep" },
+  { id: "bmw-620d-9g", brand: "BMW", model: "6 Series", variant: "620d GT Luxury Line", year: 2019, kilometres: 19402, fuel: "Diesel", transmission: "Automatic", owners: null, price: 41.75, fairLow: 42.2, fairHigh: 45.8, score: 86, confidence: "Medium", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/bmw-620d-gt-luxury-line/25750/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a8e97d29a41e.webp", positive: "Exceptionally low kilometres for its year", concern: "Ownership count is not disclosed", freshness: "Checked 5 Sep" },
+  { id: "mercedes-eqc-9g", brand: "Mercedes-Benz", model: "EQC", variant: "400 4MATIC", year: 2021, kilometres: 32003, fuel: "Electric", transmission: "Automatic", owners: null, price: 46.75, fairLow: 47.4, fairHigh: 52.1, score: 85, confidence: "Medium", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/mercedes-benz-eqc-400-4matic/25732/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a6b4e9cc0f34.webp", positive: "Large depreciation advantage versus new", concern: "Battery health report is essential", freshness: "Checked 5 Sep" },
+  { id: "audi-a4-9g", brand: "Audi", model: "A4", variant: "35 TDI Premium", year: 2016, kilometres: 29576, fuel: "Diesel", transmission: "Automatic", owners: null, price: 19.25, fairLow: 19.6, fairHigh: 21.8, score: 83, confidence: "High", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/audi-a4-35-tdi-premium-sunroof/22025/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/22025-2025-11-22-05-28-14-IMG_1751.webp", positive: "Low kilometres relative to age", concern: "Age increases maintenance exposure", freshness: "Checked 5 Sep" },
+  { id: "bmw-x1-9g", brand: "BMW", model: "X1", variant: "sDrive20d", year: 2020, kilometres: 40911, fuel: "Diesel", transmission: "Automatic", owners: null, price: 27.75, fairLow: 27.9, fairHigh: 30.1, score: 82, confidence: "High", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/bmw-x1-sdrive-20d/25655/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/69e383e053204.webp", positive: "Competitive entry price for the segment", concern: "Ownership count is not disclosed", freshness: "Checked 5 Sep" },
+  { id: "lexus-nx350h-luxe", brand: "Lexus", model: "NX", variant: "350h Luxury", year: 2023, kilometres: 25858, fuel: "Hybrid", transmission: "Automatic", owners: 1, price: 60, fairLow: 59.2, fairHigh: 63.8, score: 81, confidence: "Medium", source: "Luxe Cars", sourceUrl: "https://luxecars.co.in/catalog/used-luxury-cars/lexus-nx350h-1548", imageUrl: "https://luxecars.blr1.cdn.digitaloceanspaces.com/a3b52dd4a2335452fadb252368fd2fd6.jpeg", positive: "One-owner current-generation hybrid", concern: "Insurance renewal is reportedly due", freshness: "Checked 5 Sep" },
+  { id: "volvo-xc60-9g", brand: "Volvo", model: "XC60", variant: "B5 Ultimate", year: 2023, kilometres: 25620, fuel: "Petrol", transmission: "Automatic", owners: null, price: 57.75, fairLow: 56.8, fairHigh: 61.3, score: 80, confidence: "Medium", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/volvo-xc60-b5-ultimate/25751/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a91658a37f34.webp", positive: "Modern safety specification and sensible use", concern: "Ownership count is not disclosed", freshness: "Checked 5 Sep" },
+  { id: "mercedes-e200-9g", brand: "Mercedes-Benz", model: "E-Class", variant: "E 200", year: 2021, kilometres: 28082, fuel: "Petrol", transmission: "Automatic", owners: null, price: 52.75, fairLow: 51.8, fairHigh: 55.6, score: 79, confidence: "High", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/mercedes-benz-e-200-petrol/25739/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a7b0b98b1113.webp", positive: "Low kilometres for a 2021 executive sedan", concern: "Ownership count is not disclosed", freshness: "Checked 5 Sep" },
+  { id: "bmw-630i-luxe", brand: "BMW", model: "6 Series", variant: "630i GT M Sport", year: 2023, kilometres: 24974, fuel: "Petrol", transmission: "Automatic", owners: 1, price: 59.5, fairLow: 58.6, fairHigh: 63.2, score: 78, confidence: "Medium", source: "Luxe Cars", sourceUrl: "https://luxecars.co.in/catalog/used-luxury-cars/bmw-630i-gt-8227", imageUrl: "https://luxecars.blr1.cdn.digitaloceanspaces.com/2b7f5997bae154fd0239cb33b798b68b.jpeg", positive: "One-owner M Sport with moderate use", concern: "Insurance renewal is reportedly due", freshness: "Checked 5 Sep" },
+  { id: "audi-q8-luxe", brand: "Audi", model: "Q8", variant: "55 TFSI Celebration", year: 2023, kilometres: 21213, fuel: "Petrol", transmission: "Automatic", owners: 1, price: 78, fairLow: 76.4, fairHigh: 82.5, score: 77, confidence: "Medium", source: "Luxe Cars", sourceUrl: "https://luxecars.co.in/catalog/used-luxury-cars/audi-q8celebration-2740", imageUrl: "https://luxecars.blr1.cdn.digitaloceanspaces.com/73a726cc696b9e2cd24762df6d010959.jpg", positive: "Low-use one-owner flagship SUV", concern: "High-ticket segment has fewer comparables", freshness: "Checked 5 Sep" },
+  { id: "mercedes-eqb-9g", brand: "Mercedes-Benz", model: "EQB", variant: "300 4MATIC", year: 2023, kilometres: 25127, fuel: "Electric", transmission: "Automatic", owners: null, price: 53.75, fairLow: 51.9, fairHigh: 56.4, score: 76, confidence: "Medium", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/mercedes-benz-eqb-300-4matic/25736/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a75c569478cc.webp", positive: "Recent premium EV with practical mileage", concern: "Battery health report is essential", freshness: "Checked 5 Sep" },
+  { id: "mercedes-glc-petrol-9g", brand: "Mercedes-Benz", model: "GLC", variant: "200 4MATIC", year: 2020, kilometres: 43934, fuel: "Petrol", transmission: "Automatic", owners: null, price: 37.75, fairLow: 36.9, fairHigh: 40.1, score: 75, confidence: "High", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/mercedes-benz-glc-200-4matic/25730/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a6876e517b63.webp", positive: "Asking price sits within expected range", concern: "Ownership count is not disclosed", freshness: "Checked 5 Sep" },
+  { id: "bmw-630d-9g", brand: "BMW", model: "6 Series", variant: "630d GT Luxury Line", year: 2018, kilometres: 59975, fuel: "Diesel", transmission: "Automatic", owners: null, price: 36.75, fairLow: 35.8, fairHigh: 39.4, score: 73, confidence: "Medium", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/bmw-630d-gt-luxury-line/25693/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a27bee8db4a9.webp", positive: "Powertrain and body style retain buyer appeal", concern: "Higher age increases upkeep risk", freshness: "Checked 5 Sep" },
+  { id: "lexus-nx300h-luxe", brand: "Lexus", model: "NX", variant: "300h Luxury", year: 2019, kilometres: 86282, fuel: "Hybrid", transmission: "Automatic", owners: 1, price: 33, fairLow: 31.8, fairHigh: 35.1, score: 70, confidence: "Medium", source: "Luxe Cars", sourceUrl: "https://luxecars.co.in/catalog/used-luxury-cars/lexus-nx300h-4041", imageUrl: "https://luxecars.blr1.cdn.digitaloceanspaces.com/36866c34018678ef09fbb7a34a6a52e5.jpg", positive: "One-owner luxury hybrid at an accessible price", concern: "High kilometres require battery and suspension checks", freshness: "Checked 5 Sep" },
+  { id: "audi-q3-9g", brand: "Audi", model: "Q3", variant: "35 TDI Premium", year: 2016, kilometres: 69297, fuel: "Diesel", transmission: "Automatic", owners: null, price: 18.75, fairLow: 17.9, fairHigh: 20.2, score: 69, confidence: "High", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/audi-q3-35-tdi-premium/25722/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a5b40e038ccc.webp", positive: "Price is aligned with comparable older Q3s", concern: "Age and kilometres raise maintenance risk", freshness: "Checked 5 Sep" },
+  { id: "bmw-x3-9g", brand: "BMW", model: "X3", variant: "xDrive20d", year: 2015, kilometres: 87183, fuel: "Diesel", transmission: "Automatic", owners: null, price: 19.75, fairLow: 18.4, fairHigh: 20.6, score: 65, confidence: "Medium", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/bmw-x3-xdrive-20d/25727/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a5e01019c737.webp", positive: "Attractive entry price for an X3", concern: "High-use older diesel needs deep inspection", freshness: "Checked 5 Sep" },
+  { id: "mercedes-gla-9g", brand: "Mercedes-Benz", model: "GLA", variant: "220d 4MATIC", year: 2018, kilometres: 78263, fuel: "Diesel", transmission: "Automatic", owners: null, price: 22.75, fairLow: 21.8, fairHigh: 24.1, score: 64, confidence: "Medium", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/mercedes-benz-gla-220d-4matic/25656/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/69e76c0b50e24.webp", positive: "Accessible price for a premium AWD SUV", concern: "High kilometres and missing ownership data", freshness: "Checked 5 Sep" },
 ];
 
 const BRANDS = Object.keys(MODEL_OPTIONS) as Brand[];
@@ -257,19 +140,30 @@ export default function Home() {
       </header>
 
       <section className="hero" id="top">
-        <img
-          className="hero-image"
-          src="https://www.9thgear.co.in/images/upload/cars/69b513f028986.webp"
-          alt="BMW M340i listed for sale in Bengaluru"
-        />
-        <div className="hero-shade" />
         <div className="hero-content">
           <p className="eyebrow light">Bengaluru · Pre-owned luxury cars</p>
           <h1>Buy the car.<br />Not the sales pitch.</h1>
           <p className="hero-copy">One clear view of the market, ranked by value, condition signals and confidence—not by who paid to be first.</p>
           <a className="hero-cta" href="#discover">See the best deals <span aria-hidden="true">↓</span></a>
         </div>
-        <p className="image-credit">Actual listing photo · 9th Gear</p>
+        <div className="market-visual" aria-hidden="true">
+          <div className="visual-topline"><span>Market signal</span><b>BLR / LIVE</b></div>
+          <div className="market-orbit orbit-one" />
+          <div className="market-orbit orbit-two" />
+          <div className="market-orbit orbit-three" />
+          <div className="market-node node-one"><i />₹61.75L</div>
+          <div className="market-node node-two"><i />30,288 km</div>
+          <div className="market-node node-three"><i />92 / 100</div>
+          <div className="vehicle-trace">
+            <span className="trace-roof" />
+            <span className="trace-body" />
+            <i className="trace-wheel wheel-one" />
+            <i className="trace-wheel wheel-two" />
+          </div>
+          <div className="visual-score"><span>Deal intelligence</span><strong>22</strong><small>cars ranked now</small></div>
+          <div className="visual-footer"><span>Price</span><span>Age</span><span>Kilometres</span><span>Confidence</span></div>
+        </div>
+        <p className="hero-status"><span /> Independent market view · no promoted rankings</p>
       </section>
 
       <section className="discovery" id="discover">
@@ -322,12 +216,11 @@ export default function Home() {
         </div>
 
         <div className="source-strip" aria-label="Market sources">
-          <span>Market coverage</span>
-          <strong>9th Gear</strong>
-          <strong>Luxe Cars</strong>
-          <strong>Citizen Carz</strong>
-          <strong>OEM certified</strong>
-          <em>More connectors coming</em>
+          <span>Connected now</span>
+          <strong>9th Gear <b>15</b></strong>
+          <strong>Luxe Cars <b>7</b></strong>
+          <em>22 verified sample listings</em>
+          <small>Citizen Carz, Auto Port and OEM-certified connectors next</small>
         </div>
       </section>
 
@@ -338,7 +231,7 @@ export default function Home() {
             <h2>{activeFilterText || "The strongest deals in Bengaluru"}</h2>
           </div>
           <div className="results-meta">
-            <span>{filteredListings.length} cars found</span>
+            <span>{filteredListings.length} cars · {new Set(filteredListings.map((listing) => listing.source)).size} sources</span>
             {(brand || model || year || kilometres) && <button type="button" onClick={clearFilters}>Clear filters</button>}
           </div>
         </div>
@@ -376,7 +269,7 @@ export default function Home() {
                   <span>{listing.kilometres.toLocaleString("en-IN")} km</span>
                   <span>{listing.fuel}</span>
                   <span>{listing.transmission}</span>
-                  <span>{listing.owners} owner{listing.owners > 1 ? "s" : ""}</span>
+                  <span>{listing.owners === null ? "Owner data not listed" : `${listing.owners} owner${listing.owners > 1 ? "s" : ""}`}</span>
                 </div>
                 <div className="price-row">
                   <div><span>Asking price</span><strong>{money(listing.price)}</strong></div>

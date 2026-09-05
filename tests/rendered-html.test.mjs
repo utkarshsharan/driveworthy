@@ -20,6 +20,8 @@ test("server-renders the Driveworthy discovery experience", async () => {
   assert.match(html, /Ranked by deal score/);
   assert.match(html, /9th Gear/);
   assert.match(html, /Luxe Cars/);
+  assert.match(html, /22 verified sample listings/);
+  assert.match(html, /Market signal/);
   assert.match(html, /Set a personalised alert/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });

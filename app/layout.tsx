@@ -21,13 +21,13 @@ export const metadata: Metadata = {
     title: "Driveworthy — Buy the car, not the sales pitch",
     description: "Independent, multi-source intelligence for pre-owned luxury cars in Bengaluru.",
     type: "website",
-    images: [{ url: "/og-driveworthy.png", width: 1200, height: 630, alt: "A premium car on a Bengaluru street at blue hour" }],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Driveworthy market intelligence for pre-owned luxury cars in Bengaluru" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Driveworthy — Buy the car, not the sales pitch",
     description: "Independent, multi-source intelligence for pre-owned luxury cars in Bengaluru.",
-    images: ["/og-driveworthy.png"],
+    images: ["/og.png"],
   },
 };
 
