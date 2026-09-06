@@ -34,7 +34,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body>
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        {children}
+        {/* The public site is delivered through Vercel, so load its first-party
+            visitor script from that deployment rather than the marketplace API. */}
+        <script defer src="https://driveworthy.vercel.app/_vercel/insights/script.js" />
+      </body>
     </html>
   );
 }
