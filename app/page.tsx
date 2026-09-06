@@ -202,7 +202,9 @@ export default function Home() {
   const [source, setSource] = useState("");
   const [sortBy, setSortBy] = useState("score");
   const [carValue, setCarValue] = useState("50");
-  const [downPayment, setDownPayment] = useState("30");
+  const [downPaymentPercentInput, setDownPaymentPercentInput] = useState("20");
+  const [downPaymentAmountInput, setDownPaymentAmountInput] = useState("10");
+  const [downPaymentMode, setDownPaymentMode] = useState<"percent" | "amount">("percent");
   const [interestRate, setInterestRate] = useState("10.5");
   const [loanYears, setLoanYears] = useState("5");
   const [maxMonthlyEmi, setMaxMonthlyEmi] = useState("");
@@ -256,10 +258,37 @@ export default function Home() {
     return mergeDuplicateListings([...LISTINGS.filter((listing) => listing.source !== "Citizen Carz" || !liveCitizenUrls.has(listing.sourceUrl)), ...liveCitizenListings, ...liveCarWaleListings]);
   }, [liveCitizenListings, liveCarWaleListings]);
 
-  const carValueLakh = Number(carValue || 0);
-  const downPaymentPercent = Math.min(100, Math.max(0, Number(downPayment || 0)));
-  const loanAmountLakh = Math.max(0, carValueLakh * (1 - downPaymentPercent / 100));
+  const carValueLakh = Math.max(0, Number(carValue || 0));
+  const downPaymentPercent = Math.min(100, Math.max(0, Number(downPaymentPercentInput || 0)));
+  const downPaymentAmountLakh = Math.min(carValueLakh, Math.max(0, Number(downPaymentAmountInput || 0)));
+  const loanAmountLakh = Math.max(0, carValueLakh - downPaymentAmountLakh);
   const plannerEmi = monthlyEmi(loanAmountLakh, Number(interestRate || 0), Number(loanYears || 1));
+
+  const financeNumber = (value: number) => value.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
+
+  const updateCarValue = (value: string) => {
+    const nextValue = Number(value || 0);
+    setCarValue(value);
+    if (downPaymentMode === "amount") setDownPaymentPercentInput(financeNumber(nextValue ? (Number(downPaymentAmountInput || 0) / nextValue) * 100 : 0));
+    else setDownPaymentAmountInput(financeNumber(nextValue * Number(downPaymentPercentInput || 0) / 100));
+    setFinanceApplied(false);
+  };
+
+  const updateDownPaymentPercent = (value: string) => {
+    const percentage = Math.min(100, Math.max(0, Number(value || 0)));
+    setDownPaymentPercentInput(value);
+    setDownPaymentAmountInput(financeNumber(carValueLakh * percentage / 100));
+    setDownPaymentMode("percent");
+    setFinanceApplied(false);
+  };
+
+  const updateDownPaymentAmount = (value: string) => {
+    const amount = Math.min(carValueLakh, Math.max(0, Number(value || 0)));
+    setDownPaymentAmountInput(value);
+    setDownPaymentPercentInput(financeNumber(carValueLakh ? (amount / carValueLakh) * 100 : 0));
+    setDownPaymentMode("amount");
+    setFinanceApplied(false);
+  };
 
   const toggleShortlist = (listing: Listing) => {
     setSavedCars((current) => {
@@ -427,8 +456,9 @@ export default function Home() {
             <p>Pre-owned car loans commonly sit around <strong>9.5%–14.5% p.a.</strong>, subject to your profile, vehicle age and lender.</p>
           </div>
           <div className="finance-fields">
-            <label><span>Car value</span><div><b>₹</b><input aria-label="Car value in lakh" inputMode="decimal" value={carValue} onChange={(event) => { setCarValue(event.target.value.replace(/[^0-9.]/g, "")); setFinanceApplied(false); }} /><em>lakh</em></div></label>
-            <label><span>Down payment</span><div><input aria-label="Down payment percentage" inputMode="decimal" value={downPayment} onChange={(event) => { setDownPayment(event.target.value.replace(/[^0-9.]/g, "")); setFinanceApplied(false); }} /><em>%</em></div></label>
+            <label><span>Car value</span><div><b>₹</b><input aria-label="Car value in lakh" inputMode="decimal" value={carValue} onChange={(event) => updateCarValue(event.target.value.replace(/[^0-9.]/g, ""))} /><em>lakh</em></div></label>
+            <label><span>Down payment</span><div><input aria-label="Down payment percentage" inputMode="decimal" value={downPaymentPercentInput} onChange={(event) => updateDownPaymentPercent(event.target.value.replace(/[^0-9.]/g, ""))} /><em>%</em></div></label>
+            <label><span>Down payment amount</span><div><b>₹</b><input aria-label="Down payment amount in lakh" inputMode="decimal" value={downPaymentAmountInput} onChange={(event) => updateDownPaymentAmount(event.target.value.replace(/[^0-9.]/g, ""))} /><em>lakh</em></div></label>
             <label className="loan-readout"><span>Loan amount</span><div><b>₹</b><strong aria-live="polite">{loanAmountLakh.toFixed(loanAmountLakh % 1 === 0 ? 0 : 2)}</strong><em>lakh</em></div></label>
             <label><span>Interest rate</span><div><input aria-label="Annual interest rate" inputMode="decimal" value={interestRate} onChange={(event) => { setInterestRate(event.target.value.replace(/[^0-9.]/g, "")); setFinanceApplied(false); }} /><em>% p.a.</em></div></label>
             <label><span>Term</span><div><select aria-label="Loan term" value={loanYears} onChange={(event) => { setLoanYears(event.target.value); setFinanceApplied(false); }}><option value="3">3 years</option><option value="4">4 years</option><option value="5">5 years</option><option value="6">6 years</option><option value="7">7 years</option></select></div></label>
@@ -502,7 +532,7 @@ export default function Home() {
                 <div className="price-row">
                   <div><span>Asking price</span><strong>{money(listing.price)}</strong></div>
                   <div><span>Estimated fair range</span><strong>{money(listing.fairLow)}–{money(listing.fairHigh)}</strong></div>
-                  <button className="card-emi" type="button" onClick={() => { setCarValue(String(listing.price)); setFinanceApplied(false); document.getElementById("finance")?.scrollIntoView({ behavior: "smooth", block: "center" }); }} aria-label={`Plan finance for this ${listing.brand} ${listing.model}`}><span>Est. EMI*</span><strong>₹{rupees(monthlyEmi(listing.price * (1 - downPaymentPercent / 100), Number(interestRate || 0), Number(loanYears || 1)))}/mo</strong><em>Plan this car →</em></button>
+                  <button className="card-emi" type="button" onClick={() => { updateCarValue(String(listing.price)); document.getElementById("finance")?.scrollIntoView({ behavior: "smooth", block: "center" }); }} aria-label={`Plan finance for this ${listing.brand} ${listing.model}`}><span>Est. EMI*</span><strong>₹{rupees(monthlyEmi(listing.price * (1 - downPaymentPercent / 100), Number(interestRate || 0), Number(loanYears || 1)))}/mo</strong><em>Plan this car →</em></button>
                 </div>
                 <div className="signals">
                   <p className="positive"><span aria-hidden="true">+</span>{listing.positive}</p>
