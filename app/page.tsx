@@ -199,6 +199,11 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("refresh") !== "carwale") return;
+    fetch("/market-refresh?run=1").catch(() => { /* A later visit will retry the marketplace refresh. */ });
+  }, []);
+
+  useEffect(() => {
     fetch("/api/listings")
       .then((response) => response.ok ? response.json() : [])
       .then((records: StoredListing[]) => setLiveCarWaleListings(records.map(storedListing)))
