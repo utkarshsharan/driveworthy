@@ -37,6 +37,7 @@ const MODEL_OPTIONS: Record<string, string[]> = {
   Lexus: ["ES", "NX", "RX", "LS"],
   Porsche: ["Cayenne", "Panamera"],
   "Land Rover": ["Defender", "Range Rover Velar"],
+  Jeep: ["Compass", "Meridian", "Grand Cherokee"],
 };
 
 const CORE_LISTINGS: Listing[] = [
@@ -102,7 +103,7 @@ const EXPANDED_LISTINGS: Listing[] = [
 ];
 
 // Strict city policy: dealer inventory must be physically in Bengaluru; marketplaces must be filtered to Bengaluru.
-const BENGALURU_SOURCES = new Set(["9th Gear", "Luxe Cars", "Citizen Carz", "Luxury Motorz", "CarWale"]);
+const BENGALURU_SOURCES = new Set(["9th Gear", "Luxe Cars", "Citizen Carz", "Luxury Motorz", "CarWale", "Spinny"]);
 const LISTINGS = [...CORE_LISTINGS, ...EXPANDED_LISTINGS].filter((listing) => BENGALURU_SOURCES.has(listing.source));
 const ELIGIBLE_CITIZEN_BRANDS = new Set(["Audi", "BMW", "Jaguar", "Jeep", "Land Rover", "Maserati", "Mercedes Benz", "Mercedes-amg", "Mini", "Porsche", "Volvo"]);
 const CITIZEN_API_URL = "https://xmiwsfiykdwonwipouyp.supabase.co/rest/v1/cars?select=*&status=eq.Available&order=created_at.desc";
@@ -208,6 +209,8 @@ export default function Home() {
   const [kilometres, setKilometres] = useState("");
   const [bodyType, setBodyType] = useState("");
   const [fuelType, setFuelType] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const [source, setSource] = useState("");
   const [sortBy, setSortBy] = useState("score");
   const [carValue, setCarValue] = useState("50");
@@ -339,6 +342,8 @@ export default function Home() {
       if (kilometres && listing.kilometres > Number(kilometres)) return false;
       if (bodyType && bodyTypeFor(listing) !== bodyType) return false;
       if (fuelType && listing.fuel !== fuelType) return false;
+      if (minPrice && listing.price < Number(minPrice)) return false;
+      if (maxPrice && listing.price > Number(maxPrice)) return false;
       if (source && listing.source !== source) return false;
       if (maxMonthlyEmi && monthlyEmi(listing.price * (1 - downPaymentPercent / 100), Number(interestRate || 0), Number(loanYears || 1)) > Number(maxMonthlyEmi)) return false;
       return true;
@@ -350,9 +355,9 @@ export default function Home() {
       if (sortBy === "price-high") return b.price - a.price;
       return b.score - a.score;
     });
-  }, [allListings, brand, model, year, kilometres, bodyType, fuelType, source, sortBy, downPaymentPercent, interestRate, loanYears, maxMonthlyEmi]);
+  }, [allListings, brand, model, year, kilometres, bodyType, fuelType, minPrice, maxPrice, source, sortBy, downPaymentPercent, interestRate, loanYears, maxMonthlyEmi]);
 
-  useEffect(() => setVisibleCount(12), [brand, model, year, kilometres, bodyType, fuelType, source, sortBy, maxMonthlyEmi]);
+  useEffect(() => setVisibleCount(12), [brand, model, year, kilometres, bodyType, fuelType, minPrice, maxPrice, source, sortBy, maxMonthlyEmi]);
 
   const clearFilters = () => {
     setBrand("");
@@ -361,6 +366,8 @@ export default function Home() {
     setKilometres("");
     setBodyType("");
     setFuelType("");
+    setMinPrice("");
+    setMaxPrice("");
     setSource("");
     setMaxMonthlyEmi("");
     setFinanceApplied(false);
@@ -460,6 +467,14 @@ export default function Home() {
               {FUEL_TYPES.map((item) => <option value={item} key={item}>{item}</option>)}
             </select>
           </label>
+          <label className="price-filter">
+            <span>Price range (₹ lakh)</span>
+            <div>
+              <input aria-label="Minimum price in lakh" inputMode="decimal" placeholder="Min" value={minPrice} onChange={(event) => setMinPrice(event.target.value.replace(/[^0-9.]/g, ""))} />
+              <i>to</i>
+              <input aria-label="Maximum price in lakh" inputMode="decimal" placeholder="Max" value={maxPrice} onChange={(event) => setMaxPrice(event.target.value.replace(/[^0-9.]/g, ""))} />
+            </div>
+          </label>
           <button className="filter-action" type="button" onClick={() => document.getElementById("results")?.scrollIntoView({ behavior: "smooth" })}>
             Show ranked cars <span aria-hidden="true">→</span>
           </button>
@@ -505,7 +520,7 @@ export default function Home() {
           <div className="results-meta">
             <span>{filteredListings.length} cars · {new Set(filteredListings.map((listing) => listing.source)).size} sources</span>
             <label className="sort-control"><span>Sort by</span><select value={sortBy} onChange={(event) => { setSortBy(event.target.value); track("sort_change", event.target.value); }}><option value="score">Best deal score</option><option value="year-new">Latest year</option><option value="kms-low">Kilometres: low to high</option><option value="kms-high">Kilometres: high to low</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></label>
-            {(brand || model || year || kilometres || bodyType || fuelType || source || maxMonthlyEmi) && <button type="button" onClick={clearFilters}>Clear filters</button>}
+            {(brand || model || year || kilometres || bodyType || fuelType || minPrice || maxPrice || source || maxMonthlyEmi) && <button type="button" onClick={clearFilters}>Clear filters</button>}
           </div>
         </div>
 

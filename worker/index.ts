@@ -22,10 +22,20 @@ interface ExecutionContext {
 const CARWALE_SOURCE_ID = "carwale-bengaluru";
 const CARWALE_BASE = "https://www.carwale.com/used/bangalore/";
 const CARWALE_QUERY = "segmentTypes=1&kms=0-&year=0-&budget=0-&so=-1&sc=-1";
-const LUXURY_BRANDS = ["Mercedes-Benz", "BMW", "Audi", "Volvo", "Lexus", "Porsche", "Land Rover", "Jaguar", "Mini", "Maserati", "Bentley", "Rolls-Royce", "Ferrari", "Lamborghini"];
+const SPINNY_SOURCE_ID = "spinny-bengaluru";
+const SPINNY_INVENTORY_URL = "https://www.spinny.com/used-luxury-cars-in-bangalore/s/";
+const LUXURY_BRANDS = ["Mercedes-Benz", "BMW", "Audi", "Volvo", "Lexus", "Porsche", "Land Rover", "Jaguar", "Mini", "Maserati", "Bentley", "Rolls-Royce", "Ferrari", "Lamborghini", "Jeep"];
 const ANALYTICS_EVENTS = new Set(["page_view", "finance_filter", "finance_plan_listing", "listing_open", "shortlist_add", "shortlist_remove", "shortlist_view", "source_filter", "sort_change"]);
 
 type ImportedCar = { sourceListingId: string; url: string; imageUrl: string; title: string; location: string; price: number; kilometres: number; fuel: string; year: number; brand: string; model: string };
+
+type SpinnyPayload = {
+  results?: Array<{
+    id: number; make: string; model: string; variant?: string; make_year: number; mileage: number; price: number;
+    fuel_type?: string; transmission?: string; permanent_url?: string;
+    without_bg_image?: { file?: { absurl?: string } };
+  }>;
+};
 
 function hash(value: string) {
   let result = 2166136261;
@@ -132,6 +142,65 @@ async function importCarWale(env: Env) {
   return { pagesRead, listingsSeen };
 }
 
+function titleCase(value: string) {
+  return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+async function importSpinny(env: Env) {
+  const now = new Date().toISOString();
+  const runId = `run-${crypto.randomUUID()}`;
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM listing_sources WHERE source_id = ?").bind(SPINNY_SOURCE_ID),
+    env.DB.prepare("DELETE FROM listings WHERE id NOT IN (SELECT DISTINCT listing_id FROM listing_sources)"),
+    env.DB.prepare("INSERT INTO sources (id, name, city, inventory_url, is_enabled) VALUES (?, ?, ?, ?, 1) ON CONFLICT(id) DO UPDATE SET is_enabled = 1").bind(SPINNY_SOURCE_ID, "Spinny", "Bengaluru", SPINNY_INVENTORY_URL),
+    env.DB.prepare("INSERT INTO import_runs (id, source_id, status, started_at) VALUES (?, ?, ?, ?)").bind(runId, SPINNY_SOURCE_ID, "running", now),
+  ]);
+
+  const response = await fetch("https://api.spinny.com/v3/api/listing/v7/?city=bangalore&page=1&page_size=100&availability=available&car_category=luxury", {
+    headers: { "User-Agent": "Driveworthy market research", Accept: "application/json" },
+  });
+  if (!response.ok) {
+    await env.DB.prepare("UPDATE import_runs SET status = 'failed', completed_at = ?, message = ? WHERE id = ?").bind(now, `Spinny returned ${response.status}`, runId).run();
+    throw new Error(`Spinny returned ${response.status}`);
+  }
+
+  const payload = await response.json<SpinnyPayload>();
+  const cars = (payload.results ?? []).flatMap((car) => {
+    const brand = LUXURY_BRANDS.find((candidate) => candidate.toLowerCase() === car.make.toLowerCase());
+    const imagePath = car.without_bg_image?.file?.absurl;
+    if (!brand || !car.id || !car.model || !car.make_year || !car.price || !imagePath) return [];
+    return [{
+      sourceListingId: String(car.id),
+      url: `https://www.spinny.com${car.permanent_url ?? `/buy-used-cars/bangalore/${car.id}/`}`,
+      imageUrl: imagePath.startsWith("//") ? `https:${imagePath}` : imagePath,
+      title: `${car.make_year} ${brand} ${car.model}`,
+      location: "Bengaluru",
+      price: car.price / 100000,
+      kilometres: car.mileage,
+      fuel: titleCase(car.fuel_type ?? ""),
+      year: car.make_year,
+      brand,
+      model: car.model,
+    } satisfies ImportedCar];
+  });
+
+  const statements: D1PreparedStatement[] = [];
+  for (const car of cars) {
+    const fingerprint = `${SPINNY_SOURCE_ID}|${car.sourceListingId}`;
+    const listingId = `vehicle-${hash(fingerprint)}`;
+    statements.push(
+      env.DB.prepare("INSERT INTO listings (id, fingerprint, brand, model, year, kilometres, fuel, price_lakh, image_url, status, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?, ?) ON CONFLICT(fingerprint) DO UPDATE SET price_lakh = excluded.price_lakh, image_url = excluded.image_url, last_seen_at = excluded.last_seen_at, status = 'available'").bind(listingId, fingerprint, car.brand, car.model, car.year, car.kilometres, car.fuel, car.price, car.imageUrl, now, now),
+      env.DB.prepare("INSERT INTO listing_sources (id, listing_id, source_id, source_listing_id, source_url, asking_price_lakh, seen_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(source_id, source_listing_id) DO UPDATE SET asking_price_lakh = excluded.asking_price_lakh, seen_at = excluded.seen_at").bind(`source-${hash(`${SPINNY_SOURCE_ID}|${car.sourceListingId}`)}`, listingId, SPINNY_SOURCE_ID, car.sourceListingId, car.url, car.price, now),
+    );
+  }
+  if (statements.length) await env.DB.batch(statements);
+  await env.DB.batch([
+    env.DB.prepare("UPDATE sources SET last_completed_at = ? WHERE id = ?").bind(now, SPINNY_SOURCE_ID),
+    env.DB.prepare("UPDATE import_runs SET status = 'completed', pages_read = 1, listings_seen = ?, completed_at = ? WHERE id = ?").bind(cars.length, now, runId),
+  ]);
+  return { pagesRead: 1, listingsSeen: cars.length };
+}
+
 // Image security config. SVG sources with .svg extension auto-skip the
 // optimization endpoint on the client side (served directly, no proxy).
 // To route SVGs through the optimizer (with security headers), set
@@ -153,14 +222,23 @@ const worker = {
       }, allowedWidths);
     }
 
-    const isCarWaleImportRoute = url.pathname === "/api/import/carwale" || url.pathname === "/api/market-refresh" || url.pathname === "/market-refresh";
+    const isCarWaleImportRoute = url.pathname === "/api/import/carwale";
+    const isSpinnyImportRoute = url.pathname === "/api/import/spinny";
+    const isMarketRefreshRoute = url.pathname === "/api/market-refresh" || url.pathname === "/market-refresh";
 
-    if (isCarWaleImportRoute && (request.method === "POST" || url.searchParams.get("run") === "1")) {
+    if (isMarketRefreshRoute && (request.method === "POST" || url.searchParams.get("run") === "1")) {
+      const [carwale, spinny] = await Promise.all([importCarWale(env), importSpinny(env)]);
+      return Response.json({ carwale, spinny });
+    }
+
+    if ((isCarWaleImportRoute || isSpinnyImportRoute) && (request.method === "POST" || url.searchParams.get("run") === "1")) {
+      if (isSpinnyImportRoute) return Response.json(await importSpinny(env));
       return Response.json(await importCarWale(env));
     }
 
-    if (isCarWaleImportRoute && request.method === "GET") {
-      const latest = await env.DB.prepare("SELECT status, pages_read, listings_seen, completed_at, message FROM import_runs WHERE source_id = ? ORDER BY started_at DESC LIMIT 1").bind(CARWALE_SOURCE_ID).first();
+    if ((isCarWaleImportRoute || isSpinnyImportRoute) && request.method === "GET") {
+      const sourceId = isSpinnyImportRoute ? SPINNY_SOURCE_ID : CARWALE_SOURCE_ID;
+      const latest = await env.DB.prepare("SELECT status, pages_read, listings_seen, completed_at, message FROM import_runs WHERE source_id = ? ORDER BY started_at DESC LIMIT 1").bind(sourceId).first();
       return Response.json(latest ?? { status: "not_started" });
     }
 
