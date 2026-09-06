@@ -123,11 +123,13 @@ const worker = {
       }, allowedWidths);
     }
 
-    if (url.pathname === "/api/import/carwale" && (request.method === "POST" || url.searchParams.get("run") === "1")) {
+    const isCarWaleImportRoute = url.pathname === "/api/import/carwale" || url.pathname === "/api/market-refresh";
+
+    if (isCarWaleImportRoute && (request.method === "POST" || url.searchParams.get("run") === "1")) {
       return Response.json(await importCarWale(env));
     }
 
-    if (url.pathname === "/api/import/carwale" && request.method === "GET") {
+    if (isCarWaleImportRoute && request.method === "GET") {
       const latest = await env.DB.prepare("SELECT status, pages_read, listings_seen, completed_at, message FROM import_runs WHERE source_id = ? ORDER BY started_at DESC LIMIT 1").bind(CARWALE_SOURCE_ID).first();
       return Response.json(latest ?? { status: "not_started" });
     }
