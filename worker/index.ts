@@ -123,7 +123,7 @@ const worker = {
       }, allowedWidths);
     }
 
-    const isCarWaleImportRoute = url.pathname === "/api/import/carwale" || url.pathname === "/api/market-refresh";
+    const isCarWaleImportRoute = url.pathname === "/api/import/carwale" || url.pathname === "/api/market-refresh" || url.pathname === "/market-refresh";
 
     if (isCarWaleImportRoute && (request.method === "POST" || url.searchParams.get("run") === "1")) {
       return Response.json(await importCarWale(env));
