@@ -26,6 +26,7 @@ type Listing = {
   positive: string;
   concern: string;
   freshness: string;
+  alsoListedOn?: { source: string; sourceUrl: string }[];
 };
 
 const MODEL_OPTIONS: Record<string, string[]> = {
@@ -112,6 +113,36 @@ type CitizenCar = {
   kms_driven: number; year_mfg: string; ownership: string | null; price: number; images: string[];
 };
 
+type StoredListing = {
+  id: string; brand: string; model: string; variant: string; year: number; kilometres: number;
+  fuel: string; transmission: string; price_lakh: number; image_url: string; last_seen_at: string;
+  source: string; source_url: string;
+};
+
+function storedListing(car: StoredListing): Listing {
+  const score = Math.max(55, Math.min(86, Math.round(86 - Math.max(0, 2026 - car.year) * 2 - car.kilometres / 17000)));
+  return sourceListing({ id: `stored-${car.id}`, brand: car.brand, model: car.model, variant: car.variant, year: car.year, kilometres: car.kilometres, fuel: car.fuel, transmission: car.transmission, owners: null, price: car.price_lakh, score, source: car.source, sourceUrl: car.source_url, imageUrl: car.image_url, positive: "Live Bengaluru marketplace listing", concern: "Confirm condition and ownership with the seller", freshness: "Live inventory" });
+}
+
+function vehicleKey(listing: Listing) {
+  return `${listing.brand.toLowerCase()}|${listing.model.toLowerCase()}|${listing.year}|${listing.kilometres}`;
+}
+
+function mergeDuplicateListings(listings: Listing[]) {
+  const grouped = new Map<string, Listing>();
+  for (const listing of listings) {
+    const key = vehicleKey(listing);
+    const existing = grouped.get(key);
+    if (!existing) { grouped.set(key, listing); continue; }
+    const primary = existing.source === "CarWale" && listing.source !== "CarWale" ? listing : existing;
+    const secondary = primary === existing ? listing : existing;
+    const links = [...(primary.alsoListedOn ?? []), { source: secondary.source, sourceUrl: secondary.sourceUrl }]
+      .filter((item, index, items) => item.sourceUrl !== primary.sourceUrl && items.findIndex((candidate) => candidate.sourceUrl === item.sourceUrl) === index);
+    grouped.set(key, { ...primary, alsoListedOn: links });
+  }
+  return [...grouped.values()];
+}
+
 function citizenListing(car: CitizenCar): Listing {
   const brand = car.make === "Mercedes Benz" || car.make === "Mercedes-amg" ? "Mercedes-Benz" : car.make;
   const year = Number.parseInt(car.year_mfg, 10);
@@ -150,6 +181,7 @@ export default function Home() {
   const [alertSaved, setAlertSaved] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [liveCitizenListings, setLiveCitizenListings] = useState<Listing[]>([]);
+  const [liveCarWaleListings, setLiveCarWaleListings] = useState<Listing[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -166,10 +198,17 @@ export default function Home() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    fetch("/api/listings")
+      .then((response) => response.ok ? response.json() : [])
+      .then((records: StoredListing[]) => setLiveCarWaleListings(records.map(storedListing)))
+      .catch(() => { /* Static dealer listings remain available while the marketplace feed refreshes. */ });
+  }, []);
+
   const allListings = useMemo(() => {
     const liveCitizenUrls = new Set(liveCitizenListings.map((listing) => listing.sourceUrl));
-    return [...LISTINGS.filter((listing) => listing.source !== "Citizen Carz" || !liveCitizenUrls.has(listing.sourceUrl)), ...liveCitizenListings];
-  }, [liveCitizenListings]);
+    return mergeDuplicateListings([...LISTINGS.filter((listing) => listing.source !== "Citizen Carz" || !liveCitizenUrls.has(listing.sourceUrl)), ...liveCitizenListings, ...liveCarWaleListings]);
+  }, [liveCitizenListings, liveCarWaleListings]);
 
   useEffect(() => {
     if (!alertOpen) return;
@@ -346,6 +385,7 @@ export default function Home() {
                   <span>{listing.transmission}</span>
                   <span>{listing.owners === null ? "Owner data not listed" : `${listing.owners} owner${listing.owners > 1 ? "s" : ""}`}</span>
                 </div>
+                {listing.alsoListedOn?.length ? <p className="also-listed">Also listed on {listing.alsoListedOn.map((item, index) => <a href={item.sourceUrl} target="_blank" rel="noreferrer" key={item.sourceUrl}>{index ? ", " : ""}{item.source}</a>)}</p> : null}
                 <div className="price-row">
                   <div><span>Asking price</span><strong>{money(listing.price)}</strong></div>
                   <div><span>Estimated fair range</span><strong>{money(listing.fairLow)}–{money(listing.fairHigh)}</strong></div>

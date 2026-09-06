@@ -54,7 +54,8 @@ function parseCarWalePage(html: string): ImportedCar[] {
     const brand = LUXURY_BRANDS.find((candidate) => new RegExp(`^\\d{4} ${candidate.replace("-", "[- ]")}`, "i").test(title));
     if (!href || !title || !imageUrl || !priceText || !details || !brand || !/Bangalore/i.test(location)) continue;
     const year = Number.parseInt(title.slice(0, 4), 10);
-    const model = title.replace(/^\d{4}\s+/, "").replace(new RegExp(`^${brand.replace("-", "[- ]")}\\s+`, "i"), "").split(" ").slice(0, 3).join(" ");
+    const modelWords = title.replace(/^\d{4}\s+/, "").replace(new RegExp(`^${brand.replace("-", "[- ]")}\\s+`, "i"), "").split(" ");
+    const model = brand === "Land Rover" && modelWords.slice(0, 2).join(" ").toLowerCase() === "range rover" ? modelWords.slice(0, 3).join(" ") : modelWords[0];
     records.push({ sourceListingId: href.split("/").filter(Boolean).at(-1)!, url: `https://www.carwale.com${href}`, imageUrl, title, location, price: parsePrice(priceText), kilometres: Number.parseInt(details[1].replace(/,/g, ""), 10), fuel: details[2].trim(), year, brand, model });
   }
   return records;
@@ -64,6 +65,8 @@ async function importCarWale(env: Env) {
   const now = new Date().toISOString();
   const runId = `run-${crypto.randomUUID()}`;
   await env.DB.batch([
+    env.DB.prepare("DELETE FROM listing_sources WHERE source_id = ?").bind(CARWALE_SOURCE_ID),
+    env.DB.prepare("DELETE FROM listings WHERE id NOT IN (SELECT DISTINCT listing_id FROM listing_sources)"),
     env.DB.prepare("INSERT INTO sources (id, name, city, inventory_url, is_enabled) VALUES (?, ?, ?, ?, 1) ON CONFLICT(id) DO UPDATE SET is_enabled = 1").bind(CARWALE_SOURCE_ID, "CarWale", "Bengaluru", `${CARWALE_BASE}?${CARWALE_QUERY}`),
     env.DB.prepare("INSERT INTO import_runs (id, source_id, status, started_at) VALUES (?, ?, ?, ?)").bind(runId, CARWALE_SOURCE_ID, "running", now),
   ]);
@@ -123,6 +126,11 @@ const worker = {
     if (url.pathname === "/api/import/carwale" && request.method === "GET") {
       const latest = await env.DB.prepare("SELECT status, pages_read, listings_seen, completed_at, message FROM import_runs WHERE source_id = ? ORDER BY started_at DESC LIMIT 1").bind(CARWALE_SOURCE_ID).first();
       return Response.json(latest ?? { status: "not_started" });
+    }
+
+    if (url.pathname === "/api/listings" && request.method === "GET") {
+      const records = await env.DB.prepare("SELECT l.id, l.brand, l.model, l.variant, l.year, l.kilometres, l.fuel, l.transmission, l.price_lakh, l.image_url, l.last_seen_at, s.name AS source, ls.source_url AS source_url FROM listings l JOIN listing_sources ls ON ls.listing_id = l.id JOIN sources s ON s.id = ls.source_id WHERE l.status = 'available' ORDER BY l.last_seen_at DESC").all();
+      return Response.json(records.results);
     }
 
     return handler.fetch(request, env, ctx);
