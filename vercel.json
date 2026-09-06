@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "https://driveworthy.utkarsh2902.chatgpt.site/$1"
+    }
+  ]
+}
