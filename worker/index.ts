@@ -82,7 +82,11 @@ async function importCarWale(env: Env) {
     listingsSeen += cars.length;
     const statements: D1PreparedStatement[] = [];
     for (const car of cars) {
-      const fingerprint = `${car.brand.toLowerCase()}|${car.model.toLowerCase()}|${car.year}|${car.kilometres}`;
+      // A marketplace can contain several distinct cars with the same model,
+      // year and advertised kilometres. Keep those records separate here;
+      // cross-site reposts are grouped in the dashboard with a more cautious
+      // matching rule.
+      const fingerprint = `${CARWALE_SOURCE_ID}|${car.sourceListingId}`;
       const listingId = `vehicle-${hash(fingerprint)}`;
       statements.push(
         env.DB.prepare("INSERT INTO listings (id, fingerprint, brand, model, year, kilometres, fuel, price_lakh, image_url, status, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?, ?) ON CONFLICT(fingerprint) DO UPDATE SET price_lakh = excluded.price_lakh, image_url = excluded.image_url, last_seen_at = excluded.last_seen_at, status = 'available'").bind(listingId, fingerprint, car.brand, car.model, car.year, car.kilometres, car.fuel, car.price, car.imageUrl, now, now),
