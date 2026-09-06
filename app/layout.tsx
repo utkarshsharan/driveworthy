@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,9 +37,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         {children}
-        {/* The public site is delivered through Vercel, so load its first-party
-            visitor script from that deployment rather than the marketplace API. */}
-        <script defer src="https://driveworthy.vercel.app/_vercel/insights/script.js" />
+        <Analytics />
       </body>
     </html>
   );
