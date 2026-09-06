@@ -3,7 +3,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-type Brand = "BMW" | "Mercedes-Benz" | "Audi" | "Volvo" | "Lexus" | "Porsche" | "Land Rover";
+type Brand = string;
 
 type Listing = {
   id: string;
@@ -28,7 +28,7 @@ type Listing = {
   freshness: string;
 };
 
-const MODEL_OPTIONS: Record<Brand, string[]> = {
+const MODEL_OPTIONS: Record<string, string[]> = {
   BMW: ["2 Series", "3 Series", "5 Series", "6 Series", "7 Series", "X1", "X3", "X5", "X7", "Z4", "M340i"],
   "Mercedes-Benz": ["A-Class", "B-Class", "C-Class", "E-Class", "S-Class", "GLA", "GLC", "GLE", "GLS", "EQB", "EQC", "EQS", "V-Class"],
   Audi: ["A4", "A6", "A8", "Q3", "Q5", "Q7", "Q8"],
@@ -101,6 +101,28 @@ const EXPANDED_LISTINGS: Listing[] = [
 ];
 
 const LISTINGS = [...CORE_LISTINGS, ...EXPANDED_LISTINGS];
+const ELIGIBLE_CITIZEN_BRANDS = new Set(["Audi", "BMW", "Jaguar", "Jeep", "Land Rover", "Maserati", "Mercedes Benz", "Mercedes-amg", "Mini", "Porsche", "Volvo"]);
+const CITIZEN_API_URL = "https://xmiwsfiykdwonwipouyp.supabase.co/rest/v1/cars?select=*&status=eq.Available&order=created_at.desc";
+const CITIZEN_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtaXdzZml5a2R3b253aXBvdXlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyNjcxOTEsImV4cCI6MjA1Njg0MzE5MX0.CZ2q4nQYJcjemr-KSFO76gweDXxyTGEaoXt7i0w4fwY";
+
+type CitizenCar = {
+  id: string; make: string; model: string; variant: string; transmission: string; fuel_type: string;
+  kms_driven: number; year_mfg: string; ownership: string | null; price: number; images: string[];
+};
+
+function citizenListing(car: CitizenCar): Listing {
+  const brand = car.make === "Mercedes Benz" || car.make === "Mercedes-amg" ? "Mercedes-Benz" : car.make;
+  const year = Number.parseInt(car.year_mfg, 10);
+  const score = Math.max(58, Math.min(88, Math.round(86 - Math.max(0, 2026 - year) * 2 - car.kms_driven / 16000)));
+  return sourceListing({
+    id: `citizen-live-${car.id}`, brand, model: car.model, variant: car.variant, year,
+    kilometres: car.kms_driven, fuel: car.fuel_type, transmission: car.transmission,
+    owners: car.ownership ? Number.parseInt(car.ownership, 10) || null : null, price: car.price / 100000,
+    score, source: "Citizen Carz", imageUrl: car.images[0],
+    sourceUrl: `https://www.citizencarz.com/cars/${`${car.make} ${car.model}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${year}-bangalore--${car.id}`,
+    positive: "Live available inventory from Citizen Carz", concern: "Confirm service history before purchase", freshness: "Live inventory",
+  });
+}
 
 const BRANDS = Object.keys(MODEL_OPTIONS) as Brand[];
 
@@ -125,6 +147,27 @@ export default function Home() {
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertSaved, setAlertSaved] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [liveCitizenListings, setLiveCitizenListings] = useState<Listing[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetch(CITIZEN_API_URL, { headers: { apikey: CITIZEN_ANON_KEY } })
+      .then((response) => response.ok ? response.json() : [])
+      .then((cars: CitizenCar[]) => {
+        if (!active) return;
+        const imported = cars
+          .filter((car) => ELIGIBLE_CITIZEN_BRANDS.has(car.make) && car.images?.[0])
+          .map(citizenListing);
+        setLiveCitizenListings(imported);
+      })
+      .catch(() => { /* The static, last-checked Citizen listings remain visible if the source is unavailable. */ });
+    return () => { active = false; };
+  }, []);
+
+  const allListings = useMemo(() => {
+    const liveCitizenUrls = new Set(liveCitizenListings.map((listing) => listing.sourceUrl));
+    return [...LISTINGS.filter((listing) => listing.source !== "Citizen Carz" || !liveCitizenUrls.has(listing.sourceUrl)), ...liveCitizenListings];
+  }, [liveCitizenListings]);
 
   useEffect(() => {
     if (!alertOpen) return;
@@ -141,7 +184,7 @@ export default function Home() {
   }, [alertOpen]);
 
   const filteredListings = useMemo(() => {
-    return LISTINGS.filter((listing) => {
+    return allListings.filter((listing) => {
       if (brand && listing.brand !== brand) return false;
       if (model && listing.model !== model) return false;
       if (year && listing.year < Number(year)) return false;
@@ -149,7 +192,7 @@ export default function Home() {
       if (source && listing.source !== source) return false;
       return true;
     }).sort((a, b) => b.score - a.score);
-  }, [brand, model, year, kilometres, source]);
+  }, [allListings, brand, model, year, kilometres, source]);
 
   useEffect(() => setVisibleCount(12), [brand, model, year, kilometres, source]);
 
@@ -247,9 +290,9 @@ export default function Home() {
 
         <div className="source-strip" aria-label="Market sources">
           <span>Connected now</span>
-          <button className={!source ? "source-active" : ""} type="button" onClick={() => setSource("")}>All <b>{LISTINGS.length}</b></button>
-          {Array.from(new Set(LISTINGS.map((listing) => listing.source))).map((item) => (
-            <button className={source === item ? "source-active" : ""} type="button" onClick={() => setSource(item)} key={item}>{item} <b>{LISTINGS.filter((listing) => listing.source === item).length}</b></button>
+          <button className={!source ? "source-active" : ""} type="button" onClick={() => setSource("")}>All <b>{allListings.length}</b></button>
+          {Array.from(new Set(allListings.map((listing) => listing.source))).map((item) => (
+            <button className={source === item ? "source-active" : ""} type="button" onClick={() => setSource(item)} key={item}>{item} <b>{allListings.filter((listing) => listing.source === item).length}</b></button>
           ))}
         </div>
       </section>
