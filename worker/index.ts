@@ -61,6 +61,33 @@ function parseCarWalePage(html: string): ImportedCar[] {
   return records;
 }
 
+function parseCarWaleStocks(payload: { stocks?: Array<Record<string, unknown>> }): ImportedCar[] {
+  const records: ImportedCar[] = [];
+  for (const stock of payload.stocks ?? []) {
+    const title = String(stock.carName ?? "");
+    const href = String(stock.url ?? "");
+    const brand = LUXURY_BRANDS.find((candidate) => new RegExp(`^${candidate.replace("-", "[- ]")}\\s`, "i").test(title));
+    const year = Number(stock.makeYear);
+    if (!brand || !href || !Number.isFinite(year) || !/Bangalore/i.test(String(stock.cityName ?? ""))) continue;
+    const modelWords = title.replace(new RegExp(`^${brand.replace("-", "[- ]")}\\s+`, "i"), "").split(" ");
+    const model = brand === "Land Rover" && modelWords.slice(0, 2).join(" ").toLowerCase() === "range rover" ? modelWords.slice(0, 3).join(" ") : modelWords[0];
+    records.push({
+      sourceListingId: href.split("/").filter(Boolean).at(-1)!,
+      url: `https://www.carwale.com${href}`,
+      imageUrl: String(stock.imageUrl ?? ""),
+      title,
+      location: String(stock.cityName),
+      price: Number(stock.priceNumeric) / 100000,
+      kilometres: Number(stock.kmNumeric),
+      fuel: String(stock.fuel ?? ""),
+      year,
+      brand,
+      model,
+    });
+  }
+  return records;
+}
+
 async function importCarWale(env: Env) {
   const now = new Date().toISOString();
   const runId = `run-${crypto.randomUUID()}`;
@@ -72,12 +99,14 @@ async function importCarWale(env: Env) {
   ]);
   let pagesRead = 0;
   let listingsSeen = 0;
-  for (let page = 1; page <= 44; page += 1) {
-    const pagePath = page === 1 ? CARWALE_BASE : `${CARWALE_BASE}page-${page}/`;
-    const response = await fetch(`${pagePath}?${CARWALE_QUERY}`, { headers: { "User-Agent": "Driveworthy market research" } });
+  let nextPageUrl = `/api/stocks/?pn=1&budget=0-&city=2&kms=0-&ps=24&sc=-1&so=-1&segmentTypes=1&year=0-&lcr=0&shouldfetchnearbycars=False&stockfetched=0`;
+  for (let page = 1; page <= 44 && nextPageUrl; page += 1) {
+    const response = await fetch(`https://www.carwale.com${nextPageUrl}`, { headers: { "User-Agent": "Driveworthy market research" } });
     if (!response.ok) break;
-    const cars = parseCarWalePage(await response.text());
+    const payload = await response.json<{ stocks?: Array<Record<string, unknown>>; nextPageUrl?: string | null }>();
+    const cars = parseCarWaleStocks(payload);
     if (!cars.length) break;
+    nextPageUrl = payload.nextPageUrl ?? "";
     pagesRead += 1;
     listingsSeen += cars.length;
     const statements: D1PreparedStatement[] = [];
