@@ -53,3 +53,13 @@ export const importRuns = sqliteTable("import_runs", {
   completedAt: text("completed_at"),
   message: text("message"),
 });
+
+export const analyticsDaily = sqliteTable("analytics_daily", {
+  day: text("day").notNull(),
+  eventName: text("event_name").notNull(),
+  context: text("context").notNull().default(""),
+  count: integer("count").notNull().default(0),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [
+  uniqueIndex("analytics_daily_event_context_unique").on(table.day, table.eventName, table.context),
+]);

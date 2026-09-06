@@ -23,6 +23,7 @@ const CARWALE_SOURCE_ID = "carwale-bengaluru";
 const CARWALE_BASE = "https://www.carwale.com/used/bangalore/";
 const CARWALE_QUERY = "segmentTypes=1&kms=0-&year=0-&budget=0-&so=-1&sc=-1";
 const LUXURY_BRANDS = ["Mercedes-Benz", "BMW", "Audi", "Volvo", "Lexus", "Porsche", "Land Rover", "Jaguar", "Mini", "Maserati", "Bentley", "Rolls-Royce", "Ferrari", "Lamborghini"];
+const ANALYTICS_EVENTS = new Set(["page_view", "finance_filter", "finance_plan_listing", "listing_open", "shortlist_add", "shortlist_remove", "shortlist_view", "source_filter", "sort_change"]);
 
 type ImportedCar = { sourceListingId: string; url: string; imageUrl: string; title: string; location: string; price: number; kilometres: number; fuel: string; year: number; brand: string; model: string };
 
@@ -166,6 +167,19 @@ const worker = {
     if (url.pathname === "/api/listings" && request.method === "GET") {
       const records = await env.DB.prepare("SELECT l.id, l.brand, l.model, l.variant, l.year, l.kilometres, l.fuel, l.transmission, l.price_lakh, l.image_url, l.last_seen_at, s.name AS source, ls.source_url AS source_url FROM listings l JOIN listing_sources ls ON ls.listing_id = l.id JOIN sources s ON s.id = ls.source_id WHERE l.status = 'available' ORDER BY l.last_seen_at DESC").all();
       return Response.json(records.results);
+    }
+
+    if (url.pathname === "/api/analytics" && request.method === "POST") {
+      let payload: { event?: unknown; context?: unknown } = {};
+      try { payload = await request.json(); } catch { return new Response(null, { status: 204 }); }
+      const event = typeof payload.event === "string" ? payload.event : "";
+      if (!ANALYTICS_EVENTS.has(event)) return new Response(null, { status: 204 });
+      const context = typeof payload.context === "string" ? payload.context.replace(/[^a-zA-Z0-9._ -]/g, "").slice(0, 80) : "";
+      const now = new Date();
+      const day = now.toISOString().slice(0, 10);
+      await env.DB.prepare("INSERT INTO analytics_daily (day, event_name, context, count, updated_at) VALUES (?, ?, ?, 1, ?) ON CONFLICT(day, event_name, context) DO UPDATE SET count = count + 1, updated_at = excluded.updated_at")
+        .bind(day, event, context, now.toISOString()).run();
+      return new Response(null, { status: 204 });
     }
 
     return handler.fetch(request, env, ctx);

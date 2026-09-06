@@ -192,6 +192,15 @@ function rupees(value: number) {
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Math.round(value));
 }
 
+function track(event: string, context = "") {
+  fetch("/api/analytics", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    keepalive: true,
+    body: JSON.stringify({ event, context }),
+  }).catch(() => { /* Analytics never interrupts the product experience. */ });
+}
+
 export default function Home() {
   const [brand, setBrand] = useState<Brand | "">("");
   const [model, setModel] = useState("");
@@ -239,6 +248,12 @@ export default function Home() {
       setSavedCars(stored);
       setSavedIds(stored.map((listing) => listing.id));
     } catch { /* A corrupted local shortlist can safely start fresh. */ }
+  }, []);
+
+  useEffect(() => {
+    let referrer = "direct";
+    try { referrer = document.referrer ? new URL(document.referrer).hostname : "direct"; } catch { /* Keep the direct fallback. */ }
+    track("page_view", referrer);
   }, []);
 
   useEffect(() => {
@@ -297,6 +312,7 @@ export default function Home() {
       window.localStorage.setItem("driveworthy-shortlist", JSON.stringify(next));
       setSavedIds(next.map((item) => item.id));
       setShortlistNotice(next.length > 0);
+      track(exists ? "shortlist_remove" : "shortlist_add", listing.brand);
       return next;
     });
   };
@@ -467,15 +483,15 @@ export default function Home() {
             <span>Estimated EMI</span>
             <strong aria-live="polite">₹{rupees(plannerEmi)}</strong>
             <small>per month</small>
-            <button type="button" onClick={() => { setMaxMonthlyEmi(String(Math.round(plannerEmi))); setFinanceApplied(true); document.getElementById("results")?.scrollIntoView({ behavior: "smooth" }); }}>{financeApplied ? "EMI filter is active" : "Show cars at this EMI"} <span aria-hidden="true">→</span></button>
+            <button type="button" onClick={() => { setMaxMonthlyEmi(String(Math.round(plannerEmi))); setFinanceApplied(true); track("finance_filter"); document.getElementById("results")?.scrollIntoView({ behavior: "smooth" }); }}>{financeApplied ? "EMI filter is active" : "Show cars at this EMI"} <span aria-hidden="true">→</span></button>
           </div>
         </section>
 
         <div className="source-strip" aria-label="Market sources">
           <span>Connected now</span>
-          <button className={!source ? "source-active" : ""} type="button" onClick={() => setSource("")}>All <b>{allListings.length}</b></button>
+            <button className={!source ? "source-active" : ""} type="button" onClick={() => { setSource(""); track("source_filter", "all"); }}>All <b>{allListings.length}</b></button>
           {Array.from(new Set(allListings.map((listing) => listing.source))).map((item) => (
-            <button className={source === item ? "source-active" : ""} type="button" onClick={() => setSource(item)} key={item}>{item} <b>{allListings.filter((listing) => listing.source === item).length}</b></button>
+            <button className={source === item ? "source-active" : ""} type="button" onClick={() => { setSource(item); track("source_filter", item); }} key={item}>{item} <b>{allListings.filter((listing) => listing.source === item).length}</b></button>
           ))}
         </div>
       </section>
@@ -488,7 +504,7 @@ export default function Home() {
           </div>
           <div className="results-meta">
             <span>{filteredListings.length} cars · {new Set(filteredListings.map((listing) => listing.source)).size} sources</span>
-            <label className="sort-control"><span>Sort by</span><select value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="score">Best deal score</option><option value="year-new">Latest year</option><option value="kms-low">Kilometres: low to high</option><option value="kms-high">Kilometres: high to low</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></label>
+            <label className="sort-control"><span>Sort by</span><select value={sortBy} onChange={(event) => { setSortBy(event.target.value); track("sort_change", event.target.value); }}><option value="score">Best deal score</option><option value="year-new">Latest year</option><option value="kms-low">Kilometres: low to high</option><option value="kms-high">Kilometres: high to low</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></label>
             {(brand || model || year || kilometres || bodyType || fuelType || source || maxMonthlyEmi) && <button type="button" onClick={clearFilters}>Clear filters</button>}
           </div>
         </div>
@@ -532,13 +548,13 @@ export default function Home() {
                 <div className="price-row">
                   <div><span>Asking price</span><strong>{money(listing.price)}</strong></div>
                   <div><span>Estimated fair range</span><strong>{money(listing.fairLow)}–{money(listing.fairHigh)}</strong></div>
-                  <button className="card-emi" type="button" onClick={() => { updateCarValue(String(listing.price)); document.getElementById("finance")?.scrollIntoView({ behavior: "smooth", block: "center" }); }} aria-label={`Plan finance for this ${listing.brand} ${listing.model}`}><span>Est. EMI*</span><strong>₹{rupees(monthlyEmi(listing.price * (1 - downPaymentPercent / 100), Number(interestRate || 0), Number(loanYears || 1)))}/mo</strong><em>Plan this car →</em></button>
+                  <button className="card-emi" type="button" onClick={() => { updateCarValue(String(listing.price)); track("finance_plan_listing", listing.brand); document.getElementById("finance")?.scrollIntoView({ behavior: "smooth", block: "center" }); }} aria-label={`Plan finance for this ${listing.brand} ${listing.model}`}><span>Est. EMI*</span><strong>₹{rupees(monthlyEmi(listing.price * (1 - downPaymentPercent / 100), Number(interestRate || 0), Number(loanYears || 1)))}/mo</strong><em>Plan this car →</em></button>
                 </div>
                 <div className="signals">
                   <p className="positive"><span aria-hidden="true">+</span>{listing.positive}</p>
                   <p className="concern"><span aria-hidden="true">!</span>{listing.concern}</p>
                 </div>
-                <a className="listing-link" href={listing.sourceUrl} target="_blank" rel="noreferrer">
+                <a className="listing-link" href={listing.sourceUrl} target="_blank" rel="noreferrer" onClick={() => track("listing_open", listing.source)}>
                   View original listing <span aria-hidden="true">↗</span>
                 </a>
               </div>

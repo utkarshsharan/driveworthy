@@ -16,6 +16,7 @@ export default function ShortlistPage() {
 
   useEffect(() => {
     try { setCars(JSON.parse(window.localStorage.getItem("driveworthy-shortlist") ?? "[]")); } catch { setCars([]); }
+    fetch("/api/analytics", { method: "POST", headers: { "content-type": "application/json" }, keepalive: true, body: JSON.stringify({ event: "shortlist_view" }) }).catch(() => { /* Analytics is optional. */ });
   }, []);
 
   const remove = (id: string) => {
