@@ -3,7 +3,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-type Brand = "BMW" | "Mercedes-Benz" | "Audi" | "Volvo" | "Lexus";
+type Brand = "BMW" | "Mercedes-Benz" | "Audi" | "Volvo" | "Lexus" | "Porsche" | "Land Rover";
 
 type Listing = {
   id: string;
@@ -29,14 +29,16 @@ type Listing = {
 };
 
 const MODEL_OPTIONS: Record<Brand, string[]> = {
-  BMW: ["2 Series", "3 Series", "5 Series", "6 Series", "7 Series", "X1", "X3", "X5", "X7", "M340i"],
+  BMW: ["2 Series", "3 Series", "5 Series", "6 Series", "7 Series", "X1", "X3", "X5", "X7", "Z4", "M340i"],
   "Mercedes-Benz": ["A-Class", "B-Class", "C-Class", "E-Class", "S-Class", "GLA", "GLC", "GLE", "GLS", "EQB", "EQC", "EQS", "V-Class"],
   Audi: ["A4", "A6", "A8", "Q3", "Q5", "Q7", "Q8"],
   Volvo: ["S60", "S90", "XC40", "XC60", "XC90"],
   Lexus: ["ES", "NX", "RX", "LS"],
+  Porsche: ["Cayenne", "Panamera"],
+  "Land Rover": ["Defender", "Range Rover Velar"],
 };
 
-const LISTINGS: Listing[] = [
+const CORE_LISTINGS: Listing[] = [
   { id: "bmw-m340i-9g", brand: "BMW", model: "M340i", variant: "xDrive", year: 2023, kilometres: 30288, fuel: "Petrol", transmission: "Automatic", owners: null, price: 61.75, fairLow: 64.1, fairHigh: 68.2, score: 92, confidence: "High", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/bmw-m-340i-xdrive/25632/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/69b513f028986.webp", positive: "Priced below similar M340i listings", concern: "Ownership count is not disclosed", freshness: "Checked 5 Sep" },
   { id: "mercedes-a200-9g", brand: "Mercedes-Benz", model: "A-Class", variant: "A 200", year: 2024, kilometres: 10650, fuel: "Petrol", transmission: "Automatic", owners: null, price: 39.75, fairLow: 40.4, fairHigh: 43.2, score: 91, confidence: "High", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/mercedes-benz-a200/25742/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/6a82ec7f16da1.webp", positive: "Young car with low kilometres", concern: "Ownership count is not disclosed", freshness: "Checked 5 Sep" },
   { id: "bmw-530li-luxe", brand: "BMW", model: "5 Series", variant: "530Li M Sport", year: 2025, kilometres: 9050, fuel: "Petrol", transmission: "Automatic", owners: 1, price: 73, fairLow: 74.2, fairHigh: 78.5, score: 90, confidence: "High", source: "Luxe Cars", sourceUrl: "https://luxecars.co.in/catalog/used-luxury-cars/bmw-530li-5431", imageUrl: "https://luxecars.blr1.cdn.digitaloceanspaces.com/59c3cecc467a10336f27960931e42b9a.jpg", positive: "Current-generation, low-use one-owner car", concern: "Confirm manufacturer warranty transfer", freshness: "Checked 5 Sep" },
@@ -61,6 +63,45 @@ const LISTINGS: Listing[] = [
   { id: "mercedes-gla-9g", brand: "Mercedes-Benz", model: "GLA", variant: "220d 4MATIC", year: 2018, kilometres: 78263, fuel: "Diesel", transmission: "Automatic", owners: null, price: 22.75, fairLow: 21.8, fairHigh: 24.1, score: 64, confidence: "Medium", source: "9th Gear", sourceUrl: "https://www.9thgear.co.in/luxury-used-cars/mercedes-benz-gla-220d-4matic/25656/", imageUrl: "https://www.9thgear.co.in/images/upload/cars/69e76c0b50e24.webp", positive: "Accessible price for a premium AWD SUV", concern: "High kilometres and missing ownership data", freshness: "Checked 5 Sep" },
 ];
 
+type SourceListing = Omit<Listing, "fairLow" | "fairHigh" | "transmission" | "confidence" | "positive" | "concern" | "freshness"> & Partial<Pick<Listing, "fairLow" | "fairHigh" | "transmission" | "confidence" | "positive" | "concern" | "freshness">>;
+
+function sourceListing(listing: SourceListing): Listing {
+  const score = listing.score;
+  return {
+    ...listing,
+    transmission: listing.transmission ?? "Automatic",
+    fairLow: listing.fairLow ?? Number((listing.price * 0.97).toFixed(2)),
+    fairHigh: listing.fairHigh ?? Number((listing.price * 1.08).toFixed(2)),
+    confidence: listing.confidence ?? "Medium",
+    positive: listing.positive ?? (score >= 80 ? "Competitive age and kilometre profile" : "Useful market comparison for this model"),
+    concern: listing.concern ?? (listing.owners === null ? "Ownership count is not disclosed" : "Confirm service and ownership records"),
+    freshness: listing.freshness ?? "Checked 6 Sep",
+  };
+}
+
+// Source-owned photos and outbound listing links were checked on 6 Sep 2026.
+const EXPANDED_LISTINGS: Listing[] = [
+  sourceListing({ id: "citizen-s450-2021", brand: "Mercedes-Benz", model: "S-Class", variant: "S 450 4MATIC", year: 2021, kilometres: 18000, fuel: "Petrol", owners: 1, price: 108, score: 84, source: "Citizen Carz", sourceUrl: "https://www.citizencarz.com/cars/mercedes-benz-s-class-2021-bangalore--8ce3d4b4-b3e1-4272-8e59-037217214690", imageUrl: "https://xmiwsfiykdwonwipouyp.supabase.co/storage/v1/object/public/car-images/cars/1785247168264-ebb1ji.jpeg", positive: "Low-use flagship with declared first ownership" }),
+  sourceListing({ id: "citizen-defender-2022", brand: "Land Rover", model: "Defender", variant: "110 HSE 5str", year: 2022, kilometres: 66000, fuel: "Petrol", owners: 1, price: 96.75, score: 78, source: "Citizen Carz", sourceUrl: "https://www.citizencarz.com/cars/land-rover-defender-110-2022-bangalore--3d078fbc-f4af-45fb-9217-eef1a4aa85ae", imageUrl: "https://xmiwsfiykdwonwipouyp.supabase.co/storage/v1/object/public/car-images/ka14ma7261_1.jpg" }),
+  sourceListing({ id: "citizen-gle-2024", brand: "Mercedes-Benz", model: "GLE", variant: "450 LWB", year: 2024, kilometres: 45000, fuel: "Petrol", owners: 1, price: 89.75, score: 82, source: "Citizen Carz", sourceUrl: "https://www.citizencarz.com/cars/mercedes-benz-gle-2024-bangalore--3e4c1a4e-871d-44ff-9ab0-2ab5dac1de65", imageUrl: "https://xmiwsfiykdwonwipouyp.supabase.co/storage/v1/object/public/car-images/cars/KA29P7200/1788416824585-16e7unj.jpg" }),
+  sourceListing({ id: "citizen-q7-2022", brand: "Audi", model: "Q7", variant: "55 TFSI Premium Plus", year: 2022, kilometres: 44000, fuel: "Petrol", owners: 2, price: 57, score: 83, source: "Citizen Carz", sourceUrl: "https://www.citizencarz.com/cars/audi-q7-3-0-55-tfsi-quattro-2022-bangalore--6c1ff19b-f1ea-4412-b998-a5a5dd5f8cd7", imageUrl: "https://xmiwsfiykdwonwipouyp.supabase.co/storage/v1/object/public/car-images/cars/KA01MX6364/1788513763241-1wpqmq4.jpg" }),
+  sourceListing({ id: "citizen-530d-2019", brand: "BMW", model: "5 Series", variant: "530d M Sport", year: 2019, kilometres: 48000, fuel: "Diesel", owners: 2, price: 42, score: 80, source: "Citizen Carz", sourceUrl: "https://www.citizencarz.com/cars/bmw-5-series-2019-bangalore--a199b200-8e4c-4c48-8082-3c826bc7f1d3", imageUrl: "https://xmiwsfiykdwonwipouyp.supabase.co/storage/v1/object/public/car-images/cars/1785159986214-0myqul.jpeg" }),
+  sourceListing({ id: "arihant-velar-2024", brand: "Land Rover", model: "Range Rover Velar", variant: "R-Dynamic", year: 2024, kilometres: 26765, fuel: "Diesel", owners: null, price: 75, score: 85, source: "Arihant Cars", sourceUrl: "https://www.arihantcars.com/vdp/4785284", imageUrl: "https://d9qgigtestb1c.cloudfront.net/thumbs/p-vmaxnwm-ver1/vimages/202609/4785284_2427_1788514288743.jpg" }),
+  sourceListing({ id: "arihant-520d-2020", brand: "BMW", model: "5 Series", variant: "520d", year: 2020, kilometres: 32162, fuel: "Diesel", owners: null, price: 30, score: 86, source: "Arihant Cars", sourceUrl: "https://www.arihantcars.com/vdp/4764957", imageUrl: "https://d9qgigtestb1c.cloudfront.net/thumbs/p-vmaxnwm-ver1/vimages/202609/4764957_2427_1788265615271.jpg" }),
+  sourceListing({ id: "arihant-730ld-2022", brand: "BMW", model: "7 Series", variant: "730Ld", year: 2022, kilometres: 31000, fuel: "Diesel", owners: null, price: 80, score: 80, source: "Arihant Cars", sourceUrl: "https://www.arihantcars.com/vdp/4723324", imageUrl: "https://d9qgigtestb1c.cloudfront.net/thumbs/p-vmaxnwm-ver1/vimages/202608/4723324_2427_1787819123050.jpg" }),
+  sourceListing({ id: "arihant-xc60-2019", brand: "Volvo", model: "XC60", variant: "D5 Inscription", year: 2019, kilometres: 61875, fuel: "Diesel", owners: null, price: 29, score: 77, source: "Arihant Cars", sourceUrl: "https://www.arihantcars.com/vdp/4772859", imageUrl: "https://d9qgigtestb1c.cloudfront.net/thumbs/p-vmaxnwm-ver1/vimages/202608/4772859_2427_1788088048461.jpg" }),
+  sourceListing({ id: "arihant-cayenne-2015", brand: "Porsche", model: "Cayenne", variant: "Diesel", year: 2015, kilometres: 88750, fuel: "Diesel", owners: null, price: 35, score: 70, source: "Arihant Cars", sourceUrl: "https://www.arihantcars.com/vdp/4720057", imageUrl: "https://d9qgigtestb1c.cloudfront.net/thumbs/p-vmaxnwm-ver1/vimages/202608/4720057_2427_1785921547207.jpeg" }),
+  sourceListing({ id: "motorz-glc43-2022", brand: "Mercedes-Benz", model: "GLC", variant: "43 AMG Coupe", year: 2022, kilometres: 63000, fuel: "Petrol", owners: 2, price: 64.75, score: 76, source: "Luxury Motorz", sourceUrl: "https://www.luxurymotorz.com/car-description/234/mercedes-benz-glc-43-amg-coupe", imageUrl: "https://www.luxurymotorz.com/static/car_varient/17759776921.jpeg" }),
+  sourceListing({ id: "motorz-nx300h-2019", brand: "Lexus", model: "NX", variant: "300h Hybrid", year: 2019, kilometres: 89500, fuel: "Hybrid", owners: 1, price: 33.9, score: 75, source: "Luxury Motorz", sourceUrl: "https://www.luxurymotorz.com/car-description/229/lexus-nx-300h-hybrid", imageUrl: "https://www.luxurymotorz.com/static/car_varient/17684670061.jpeg" }),
+  sourceListing({ id: "motorz-x3-2016", brand: "BMW", model: "X3", variant: "xDrive20d", year: 2016, kilometres: 92000, fuel: "Diesel", owners: 2, price: 21.45, score: 68, source: "Luxury Motorz", sourceUrl: "https://www.luxurymotorz.com/car-description/141/bmw-x3-x-drive-20d", imageUrl: "https://www.luxurymotorz.com/static/car_varient/1736232550WhatsApp%20Image%202024-04-19%20at%206.14.57%20PM.jpeg" }),
+  sourceListing({ id: "carrazo-x3-2023", brand: "BMW", model: "X3", variant: "xDrive20d M Sport", year: 2023, kilometres: 46500, fuel: "Diesel", owners: null, price: 55, score: 82, source: "Carrazo", sourceUrl: "https://www.carrazocars.in/vdp/4780487", imageUrl: "https://d9qgigtestb1c.cloudfront.net/thumbs/p-vmaxnwm-ver1/vimages/202609/4780487_135351_1788349710667.jpeg" }),
+  sourceListing({ id: "carrazo-gle-2022", brand: "Mercedes-Benz", model: "GLE", variant: "300d", year: 2022, kilometres: 50000, fuel: "Diesel", owners: null, price: 72, score: 79, source: "Carrazo", sourceUrl: "https://www.carrazocars.in/vdp/4771420", imageUrl: "https://d9qgigtestb1c.cloudfront.net/thumbs/p-vmaxnwm-ver1/vimages/202608/4771420_135351_1788009100791.jpg" }),
+  sourceListing({ id: "carrazo-z4-2021", brand: "BMW", model: "Z4", variant: "M Sport", year: 2021, kilometres: 16500, fuel: "Petrol", owners: null, price: 70, score: 78, source: "Carrazo", sourceUrl: "https://www.carrazocars.in/vdp/4771359", imageUrl: "https://d9qgigtestb1c.cloudfront.net/thumbs/p-vmaxnwm-ver1/vimages/202608/4771359_135351_1788007883757.jpeg" }),
+  sourceListing({ id: "carwale-520d-2023", brand: "BMW", model: "5 Series", variant: "520d M Sport", year: 2023, kilometres: 31526, fuel: "Diesel", owners: 1, price: 58, score: 81, source: "CarWale", sourceUrl: "https://www.carwale.com/used/bangalore/bmw-5-series/knt89xgd/", imageUrl: "https://imgd.aeplcdn.com/640X480/vimages/202608/4760570_146184_1787573982781.jpeg?qp=80&fit=true" }),
+];
+
+const LISTINGS = [...CORE_LISTINGS, ...EXPANDED_LISTINGS];
+
 const BRANDS = Object.keys(MODEL_OPTIONS) as Brand[];
 
 function money(value: number) {
@@ -79,6 +120,8 @@ export default function Home() {
   const [model, setModel] = useState("");
   const [year, setYear] = useState("");
   const [kilometres, setKilometres] = useState("");
+  const [source, setSource] = useState("");
+  const [visibleCount, setVisibleCount] = useState(12);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertSaved, setAlertSaved] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
@@ -103,15 +146,19 @@ export default function Home() {
       if (model && listing.model !== model) return false;
       if (year && listing.year < Number(year)) return false;
       if (kilometres && listing.kilometres > Number(kilometres)) return false;
+      if (source && listing.source !== source) return false;
       return true;
     }).sort((a, b) => b.score - a.score);
-  }, [brand, model, year, kilometres]);
+  }, [brand, model, year, kilometres, source]);
+
+  useEffect(() => setVisibleCount(12), [brand, model, year, kilometres, source]);
 
   const clearFilters = () => {
     setBrand("");
     setModel("");
     setYear("");
     setKilometres("");
+    setSource("");
   };
 
   const submitAlert = (event: FormEvent<HTMLFormElement>) => {
@@ -119,7 +166,7 @@ export default function Home() {
     setAlertSaved(true);
   };
 
-  const activeFilterText = [brand, model, year && `${year}+`, kilometres && `under ${Number(kilometres).toLocaleString("en-IN")} km`]
+  const activeFilterText = [source, brand, model, year && `${year}+`, kilometres && `under ${Number(kilometres).toLocaleString("en-IN")} km`]
     .filter(Boolean)
     .join(" · ");
 
@@ -200,10 +247,10 @@ export default function Home() {
 
         <div className="source-strip" aria-label="Market sources">
           <span>Connected now</span>
-          <strong>9th Gear <b>15</b></strong>
-          <strong>Luxe Cars <b>7</b></strong>
-          <em>22 verified sample listings</em>
-          <small>Citizen Carz, Auto Port and OEM-certified connectors next</small>
+          <button className={!source ? "source-active" : ""} type="button" onClick={() => setSource("")}>All <b>{LISTINGS.length}</b></button>
+          {Array.from(new Set(LISTINGS.map((listing) => listing.source))).map((item) => (
+            <button className={source === item ? "source-active" : ""} type="button" onClick={() => setSource(item)} key={item}>{item} <b>{LISTINGS.filter((listing) => listing.source === item).length}</b></button>
+          ))}
         </div>
       </section>
 
@@ -215,7 +262,7 @@ export default function Home() {
           </div>
           <div className="results-meta">
             <span>{filteredListings.length} cars · {new Set(filteredListings.map((listing) => listing.source)).size} sources</span>
-            {(brand || model || year || kilometres) && <button type="button" onClick={clearFilters}>Clear filters</button>}
+            {(brand || model || year || kilometres || source) && <button type="button" onClick={clearFilters}>Clear filters</button>}
           </div>
         </div>
 
@@ -225,7 +272,7 @@ export default function Home() {
         </div>
 
         <div className="listing-list">
-          {filteredListings.map((listing, index) => (
+          {filteredListings.slice(0, visibleCount).map((listing, index) => (
             <article className="listing-card" key={listing.id}>
               <div className="rank" aria-label={`Rank ${index + 1}`}>{String(index + 1).padStart(2, "0")}</div>
               <a className="car-image-wrap" href={listing.sourceUrl} target="_blank" rel="noreferrer">
@@ -276,6 +323,10 @@ export default function Home() {
             </article>
           ))}
         </div>
+
+        {filteredListings.length > visibleCount && (
+          <div className="load-more"><span>Showing {visibleCount} of {filteredListings.length} cars</span><button type="button" onClick={() => setVisibleCount((current) => current + 12)}>Show 12 more <span aria-hidden="true">↓</span></button></div>
+        )}
 
         {filteredListings.length === 0 && (
           <div className="empty-state">
