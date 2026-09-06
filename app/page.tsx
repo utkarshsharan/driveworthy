@@ -201,8 +201,8 @@ export default function Home() {
   const [fuelType, setFuelType] = useState("");
   const [source, setSource] = useState("");
   const [sortBy, setSortBy] = useState("score");
-  const [downPayment, setDownPayment] = useState("15");
-  const [loanAmount, setLoanAmount] = useState("40");
+  const [carValue, setCarValue] = useState("50");
+  const [downPayment, setDownPayment] = useState("30");
   const [interestRate, setInterestRate] = useState("10.5");
   const [loanYears, setLoanYears] = useState("5");
   const [maxMonthlyEmi, setMaxMonthlyEmi] = useState("");
@@ -256,7 +256,10 @@ export default function Home() {
     return mergeDuplicateListings([...LISTINGS.filter((listing) => listing.source !== "Citizen Carz" || !liveCitizenUrls.has(listing.sourceUrl)), ...liveCitizenListings, ...liveCarWaleListings]);
   }, [liveCitizenListings, liveCarWaleListings]);
 
-  const plannerEmi = monthlyEmi(Number(loanAmount || 0), Number(interestRate || 0), Number(loanYears || 1));
+  const carValueLakh = Number(carValue || 0);
+  const downPaymentPercent = Math.min(100, Math.max(0, Number(downPayment || 0)));
+  const loanAmountLakh = Math.max(0, carValueLakh * (1 - downPaymentPercent / 100));
+  const plannerEmi = monthlyEmi(loanAmountLakh, Number(interestRate || 0), Number(loanYears || 1));
 
   const toggleShortlist = (listing: Listing) => {
     setSavedCars((current) => {
@@ -292,7 +295,7 @@ export default function Home() {
       if (bodyType && bodyTypeFor(listing) !== bodyType) return false;
       if (fuelType && listing.fuel !== fuelType) return false;
       if (source && listing.source !== source) return false;
-      if (maxMonthlyEmi && monthlyEmi(Math.max(0, listing.price - Number(downPayment || 0)), Number(interestRate || 0), Number(loanYears || 1)) > Number(maxMonthlyEmi)) return false;
+      if (maxMonthlyEmi && monthlyEmi(listing.price * (1 - downPaymentPercent / 100), Number(interestRate || 0), Number(loanYears || 1)) > Number(maxMonthlyEmi)) return false;
       return true;
     }).sort((a, b) => {
       if (sortBy === "year-new") return b.year - a.year;
@@ -302,7 +305,7 @@ export default function Home() {
       if (sortBy === "price-high") return b.price - a.price;
       return b.score - a.score;
     });
-  }, [allListings, brand, model, year, kilometres, bodyType, fuelType, source, sortBy, downPayment, interestRate, loanYears, maxMonthlyEmi]);
+  }, [allListings, brand, model, year, kilometres, bodyType, fuelType, source, sortBy, downPaymentPercent, interestRate, loanYears, maxMonthlyEmi]);
 
   useEffect(() => setVisibleCount(12), [brand, model, year, kilometres, bodyType, fuelType, source, sortBy, maxMonthlyEmi]);
 
@@ -424,8 +427,9 @@ export default function Home() {
             <p>Pre-owned car loans commonly sit around <strong>9.5%–14.5% p.a.</strong>, subject to your profile, vehicle age and lender.</p>
           </div>
           <div className="finance-fields">
-            <label><span>Down payment</span><div><b>₹</b><input aria-label="Down payment in lakh" inputMode="decimal" value={downPayment} onChange={(event) => { setDownPayment(event.target.value.replace(/[^0-9.]/g, "")); setFinanceApplied(false); }} /><em>lakh</em></div></label>
-            <label><span>Loan amount</span><div><b>₹</b><input aria-label="Loan amount in lakh" inputMode="decimal" value={loanAmount} onChange={(event) => { setLoanAmount(event.target.value.replace(/[^0-9.]/g, "")); setFinanceApplied(false); }} /><em>lakh</em></div></label>
+            <label><span>Car value</span><div><b>₹</b><input aria-label="Car value in lakh" inputMode="decimal" value={carValue} onChange={(event) => { setCarValue(event.target.value.replace(/[^0-9.]/g, "")); setFinanceApplied(false); }} /><em>lakh</em></div></label>
+            <label><span>Down payment</span><div><input aria-label="Down payment percentage" inputMode="decimal" value={downPayment} onChange={(event) => { setDownPayment(event.target.value.replace(/[^0-9.]/g, "")); setFinanceApplied(false); }} /><em>%</em></div></label>
+            <label className="loan-readout"><span>Loan amount</span><div><b>₹</b><strong aria-live="polite">{loanAmountLakh.toFixed(loanAmountLakh % 1 === 0 ? 0 : 2)}</strong><em>lakh</em></div></label>
             <label><span>Interest rate</span><div><input aria-label="Annual interest rate" inputMode="decimal" value={interestRate} onChange={(event) => { setInterestRate(event.target.value.replace(/[^0-9.]/g, "")); setFinanceApplied(false); }} /><em>% p.a.</em></div></label>
             <label><span>Term</span><div><select aria-label="Loan term" value={loanYears} onChange={(event) => { setLoanYears(event.target.value); setFinanceApplied(false); }}><option value="3">3 years</option><option value="4">4 years</option><option value="5">5 years</option><option value="6">6 years</option><option value="7">7 years</option></select></div></label>
           </div>
@@ -498,7 +502,7 @@ export default function Home() {
                 <div className="price-row">
                   <div><span>Asking price</span><strong>{money(listing.price)}</strong></div>
                   <div><span>Estimated fair range</span><strong>{money(listing.fairLow)}–{money(listing.fairHigh)}</strong></div>
-                  <div className="card-emi"><span>Est. EMI*</span><strong>₹{rupees(monthlyEmi(Math.max(0, listing.price - Number(downPayment || 0)), Number(interestRate || 0), Number(loanYears || 1)))}/mo</strong></div>
+                  <button className="card-emi" type="button" onClick={() => { setCarValue(String(listing.price)); setFinanceApplied(false); document.getElementById("finance")?.scrollIntoView({ behavior: "smooth", block: "center" }); }} aria-label={`Plan finance for this ${listing.brand} ${listing.model}`}><span>Est. EMI*</span><strong>₹{rupees(monthlyEmi(listing.price * (1 - downPaymentPercent / 100), Number(interestRate || 0), Number(loanYears || 1)))}/mo</strong><em>Plan this car →</em></button>
                 </div>
                 <div className="signals">
                   <p className="positive"><span aria-hidden="true">+</span>{listing.positive}</p>
