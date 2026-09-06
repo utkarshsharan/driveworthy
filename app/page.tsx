@@ -100,7 +100,9 @@ const EXPANDED_LISTINGS: Listing[] = [
   sourceListing({ id: "carwale-520d-2023", brand: "BMW", model: "5 Series", variant: "520d M Sport", year: 2023, kilometres: 31526, fuel: "Diesel", owners: 1, price: 58, score: 81, source: "CarWale", sourceUrl: "https://www.carwale.com/used/bangalore/bmw-5-series/knt89xgd/", imageUrl: "https://imgd.aeplcdn.com/640X480/vimages/202608/4760570_146184_1787573982781.jpeg?qp=80&fit=true" }),
 ];
 
-const LISTINGS = [...CORE_LISTINGS, ...EXPANDED_LISTINGS];
+// Strict city policy: dealer inventory must be physically in Bengaluru; marketplaces must be filtered to Bengaluru.
+const BENGALURU_SOURCES = new Set(["9th Gear", "Luxe Cars", "Citizen Carz", "Luxury Motorz", "CarWale"]);
+const LISTINGS = [...CORE_LISTINGS, ...EXPANDED_LISTINGS].filter((listing) => BENGALURU_SOURCES.has(listing.source));
 const ELIGIBLE_CITIZEN_BRANDS = new Set(["Audi", "BMW", "Jaguar", "Jeep", "Land Rover", "Maserati", "Mercedes Benz", "Mercedes-amg", "Mini", "Porsche", "Volvo"]);
 const CITIZEN_API_URL = "https://xmiwsfiykdwonwipouyp.supabase.co/rest/v1/cars?select=*&status=eq.Available&order=created_at.desc";
 const CITIZEN_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtaXdzZml5a2R3b253aXBvdXlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyNjcxOTEsImV4cCI6MjA1Njg0MzE5MX0.CZ2q4nQYJcjemr-KSFO76gweDXxyTGEaoXt7i0w4fwY";
