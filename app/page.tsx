@@ -37,7 +37,6 @@ const MODEL_OPTIONS: Record<string, string[]> = {
   Lexus: ["ES", "NX", "RX", "LS"],
   Porsche: ["Cayenne", "Panamera"],
   "Land Rover": ["Defender", "Range Rover Velar"],
-  Jeep: ["Compass", "Meridian", "Grand Cherokee"],
 };
 
 const CORE_LISTINGS: Listing[] = [
@@ -105,7 +104,7 @@ const EXPANDED_LISTINGS: Listing[] = [
 // Strict city policy: dealer inventory must be physically in Bengaluru; marketplaces must be filtered to Bengaluru.
 const BENGALURU_SOURCES = new Set(["9th Gear", "Luxe Cars", "Citizen Carz", "Luxury Motorz", "CarWale", "Spinny"]);
 const LISTINGS = [...CORE_LISTINGS, ...EXPANDED_LISTINGS].filter((listing) => BENGALURU_SOURCES.has(listing.source));
-const ELIGIBLE_CITIZEN_BRANDS = new Set(["Audi", "BMW", "Jaguar", "Jeep", "Land Rover", "Maserati", "Mercedes Benz", "Mercedes-amg", "Mini", "Porsche", "Volvo"]);
+const ELIGIBLE_CITIZEN_BRANDS = new Set(["Audi", "BMW", "Jaguar", "Land Rover", "Maserati", "Mercedes Benz", "Mercedes-amg", "Mini", "Porsche", "Volvo"]);
 const CITIZEN_API_URL = "https://xmiwsfiykdwonwipouyp.supabase.co/rest/v1/cars?select=*&status=eq.Available&order=created_at.desc";
 const CITIZEN_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtaXdzZml5a2R3b253aXBvdXlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyNjcxOTEsImV4cCI6MjA1Njg0MzE5MX0.CZ2q4nQYJcjemr-KSFO76gweDXxyTGEaoXt7i0w4fwY";
 

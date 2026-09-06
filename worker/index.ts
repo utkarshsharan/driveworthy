@@ -24,7 +24,7 @@ const CARWALE_BASE = "https://www.carwale.com/used/bangalore/";
 const CARWALE_QUERY = "segmentTypes=1&kms=0-&year=0-&budget=0-&so=-1&sc=-1";
 const SPINNY_SOURCE_ID = "spinny-bengaluru";
 const SPINNY_INVENTORY_URL = "https://www.spinny.com/used-luxury-cars-in-bangalore/s/";
-const LUXURY_BRANDS = ["Mercedes-Benz", "BMW", "Audi", "Volvo", "Lexus", "Porsche", "Land Rover", "Jaguar", "Mini", "Maserati", "Bentley", "Rolls-Royce", "Ferrari", "Lamborghini", "Jeep"];
+const LUXURY_BRANDS = ["Mercedes-Benz", "BMW", "Audi", "Volvo", "Lexus", "Porsche", "Land Rover", "Jaguar", "Mini", "Maserati", "Bentley", "Rolls-Royce", "Ferrari", "Lamborghini"];
 const ANALYTICS_EVENTS = new Set(["page_view", "finance_filter", "finance_plan_listing", "listing_open", "shortlist_add", "shortlist_remove", "shortlist_view", "source_filter", "sort_change"]);
 
 type ImportedCar = { sourceListingId: string; url: string; imageUrl: string; title: string; location: string; price: number; kilometres: number; fuel: string; year: number; brand: string; model: string };
