@@ -206,10 +206,13 @@ export default function Home() {
   const [interestRate, setInterestRate] = useState("10.5");
   const [loanYears, setLoanYears] = useState("5");
   const [maxMonthlyEmi, setMaxMonthlyEmi] = useState("");
+  const [financeApplied, setFinanceApplied] = useState(false);
   const [visibleCount, setVisibleCount] = useState(12);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertSaved, setAlertSaved] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [savedCars, setSavedCars] = useState<Listing[]>([]);
+  const [shortlistNotice, setShortlistNotice] = useState(false);
   const [liveCitizenListings, setLiveCitizenListings] = useState<Listing[]>([]);
   const [liveCarWaleListings, setLiveCarWaleListings] = useState<Listing[]>([]);
 
@@ -229,6 +232,14 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem("driveworthy-shortlist") ?? "[]") as Listing[];
+      setSavedCars(stored);
+      setSavedIds(stored.map((listing) => listing.id));
+    } catch { /* A corrupted local shortlist can safely start fresh. */ }
+  }, []);
+
+  useEffect(() => {
     if (new URLSearchParams(window.location.search).get("refresh") !== "carwale") return;
     fetch("/market-refresh?run=1").catch(() => { /* A later visit will retry the marketplace refresh. */ });
   }, []);
@@ -244,6 +255,19 @@ export default function Home() {
     const liveCitizenUrls = new Set(liveCitizenListings.map((listing) => listing.sourceUrl));
     return mergeDuplicateListings([...LISTINGS.filter((listing) => listing.source !== "Citizen Carz" || !liveCitizenUrls.has(listing.sourceUrl)), ...liveCitizenListings, ...liveCarWaleListings]);
   }, [liveCitizenListings, liveCarWaleListings]);
+
+  const plannerEmi = monthlyEmi(Number(loanAmount || 0), Number(interestRate || 0), Number(loanYears || 1));
+
+  const toggleShortlist = (listing: Listing) => {
+    setSavedCars((current) => {
+      const exists = current.some((item) => item.id === listing.id);
+      const next = exists ? current.filter((item) => item.id !== listing.id) : [...current, listing];
+      window.localStorage.setItem("driveworthy-shortlist", JSON.stringify(next));
+      setSavedIds(next.map((item) => item.id));
+      setShortlistNotice(next.length > 0);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!alertOpen) return;
@@ -291,6 +315,7 @@ export default function Home() {
     setFuelType("");
     setSource("");
     setMaxMonthlyEmi("");
+    setFinanceApplied(false);
   };
 
   const submitAlert = (event: FormEvent<HTMLFormElement>) => {
@@ -324,6 +349,7 @@ export default function Home() {
           <h1>Bengaluru’s luxury<br />market, clearly ranked.</h1>
           <p className="hero-copy">Find the right car with price, condition and confidence in one view.</p>
           <a className="hero-cta" href="#discover">Explore the market <span aria-hidden="true">↓</span></a>
+          <a className="hero-finance" href="#finance"><span aria-hidden="true">◒</span> Plan your finance</a>
         </div>
         <p className="hero-status"><span /> Independent market view · no promoted rankings</p>
       </section>
@@ -391,23 +417,23 @@ export default function Home() {
           </button>
         </div>
 
-        <section className="finance-calculator" aria-labelledby="finance-title">
+        <section className="finance-calculator" id="finance" aria-labelledby="finance-title">
           <div className="finance-intro">
             <p className="eyebrow">Finance planner</p>
             <h3 id="finance-title">Know the monthly number before you shortlist.</h3>
             <p>Pre-owned car loans commonly sit around <strong>9.5%–14.5% p.a.</strong>, subject to your profile, vehicle age and lender.</p>
           </div>
           <div className="finance-fields">
-            <label><span>Down payment</span><div><b>₹</b><input inputMode="decimal" value={downPayment} onChange={(event) => setDownPayment(event.target.value.replace(/[^0-9.]/g, ""))} /><em>lakh</em></div></label>
-            <label><span>Loan amount</span><div><b>₹</b><input inputMode="decimal" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value.replace(/[^0-9.]/g, ""))} /><em>lakh</em></div></label>
-            <label><span>Interest rate</span><div><input inputMode="decimal" value={interestRate} onChange={(event) => setInterestRate(event.target.value.replace(/[^0-9.]/g, ""))} /><em>% p.a.</em></div></label>
-            <label><span>Term</span><div><select value={loanYears} onChange={(event) => setLoanYears(event.target.value)}><option value="3">3 years</option><option value="4">4 years</option><option value="5">5 years</option><option value="6">6 years</option><option value="7">7 years</option></select></div></label>
+            <label><span>Down payment</span><div><b>₹</b><input aria-label="Down payment in lakh" inputMode="decimal" value={downPayment} onChange={(event) => { setDownPayment(event.target.value.replace(/[^0-9.]/g, "")); setFinanceApplied(false); }} /><em>lakh</em></div></label>
+            <label><span>Loan amount</span><div><b>₹</b><input aria-label="Loan amount in lakh" inputMode="decimal" value={loanAmount} onChange={(event) => { setLoanAmount(event.target.value.replace(/[^0-9.]/g, "")); setFinanceApplied(false); }} /><em>lakh</em></div></label>
+            <label><span>Interest rate</span><div><input aria-label="Annual interest rate" inputMode="decimal" value={interestRate} onChange={(event) => { setInterestRate(event.target.value.replace(/[^0-9.]/g, "")); setFinanceApplied(false); }} /><em>% p.a.</em></div></label>
+            <label><span>Term</span><div><select aria-label="Loan term" value={loanYears} onChange={(event) => { setLoanYears(event.target.value); setFinanceApplied(false); }}><option value="3">3 years</option><option value="4">4 years</option><option value="5">5 years</option><option value="6">6 years</option><option value="7">7 years</option></select></div></label>
           </div>
           <div className="finance-result">
             <span>Estimated EMI</span>
-            <strong>₹{rupees(monthlyEmi(Number(loanAmount || 0), Number(interestRate || 0), Number(loanYears || 1)))}</strong>
+            <strong aria-live="polite">₹{rupees(plannerEmi)}</strong>
             <small>per month</small>
-            <button type="button" onClick={() => setMaxMonthlyEmi(String(Math.round(monthlyEmi(Number(loanAmount || 0), Number(interestRate || 0), Number(loanYears || 1)))))}>Show cars at this EMI <span aria-hidden="true">→</span></button>
+            <button type="button" onClick={() => { setMaxMonthlyEmi(String(Math.round(plannerEmi))); setFinanceApplied(true); document.getElementById("results")?.scrollIntoView({ behavior: "smooth" }); }}>{financeApplied ? "EMI filter is active" : "Show cars at this EMI"} <span aria-hidden="true">→</span></button>
           </div>
         </section>
 
@@ -457,7 +483,7 @@ export default function Home() {
                     type="button"
                     aria-label={`${savedIds.includes(listing.id) ? "Remove" : "Save"} ${listing.brand} ${listing.model}`}
                     aria-pressed={savedIds.includes(listing.id)}
-                    onClick={() => setSavedIds((current) => current.includes(listing.id) ? current.filter((id) => id !== listing.id) : [...current, listing.id])}
+                    onClick={() => toggleShortlist(listing)}
                   >
                     {savedIds.includes(listing.id) ? "✓" : "＋"}
                   </button>
@@ -533,6 +559,14 @@ export default function Home() {
         <p>Independent intelligence for pre-owned luxury cars in Bengaluru.</p>
         <p>Listing rights remain with their original sources.</p>
       </footer>
+
+      {shortlistNotice && savedCars.length > 0 && (
+        <a className="shortlist-toast" href="/shortlist" aria-label={`Open shortlist with ${savedCars.length} saved cars`}>
+          <span className="shortlist-icon" aria-hidden="true">✓</span>
+          <span><b>{savedCars.length} car{savedCars.length === 1 ? "" : "s"} saved</b><small>Open your shortlist</small></span>
+          <span className="toast-arrow" aria-hidden="true">→</span>
+        </a>
+      )}
 
       {alertOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setAlertOpen(false); }}>
