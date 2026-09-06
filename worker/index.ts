@@ -19,6 +19,82 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
+const CARWALE_SOURCE_ID = "carwale-bengaluru";
+const CARWALE_BASE = "https://www.carwale.com/used/bangalore/";
+const CARWALE_QUERY = "segmentTypes=1&kms=0-&year=0-&budget=0-&so=-1&sc=-1";
+const LUXURY_BRANDS = ["Mercedes-Benz", "BMW", "Audi", "Volvo", "Lexus", "Porsche", "Land Rover", "Jaguar", "Mini", "Maserati", "Bentley", "Rolls-Royce", "Ferrari", "Lamborghini"];
+
+type ImportedCar = { sourceListingId: string; url: string; imageUrl: string; title: string; location: string; price: number; kilometres: number; fuel: string; year: number; brand: string; model: string };
+
+function hash(value: string) {
+  let result = 2166136261;
+  for (let index = 0; index < value.length; index += 1) result = Math.imul(result ^ value.charCodeAt(index), 16777619);
+  return (result >>> 0).toString(36);
+}
+
+function decode(value: string) {
+  return value.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/&#x27;/g, "'").trim();
+}
+
+function parsePrice(value: string) {
+  const amount = Number.parseFloat(value.replace(/[^0-9.]/g, ""));
+  return /crore/i.test(value) ? amount * 100 : amount;
+}
+
+function parseCarWalePage(html: string): ImportedCar[] {
+  const cards = [...html.matchAll(/<li class="o-C o-jA[^>]*>([\s\S]*?)<\/li>/g)].map((match) => match[1]);
+  const records: ImportedCar[] = [];
+  for (const card of cards) {
+    const href = card.match(/href="(\/used\/bangalore\/[^\"]+\/[^\"]+\/)"/i)?.[1];
+    const title = decode(card.match(/<h3[^>]*>([^<]+)<\/h3>/i)?.[1] ?? "");
+    const location = decode(card.match(/<span[^>]*>([^<]*Bangalore)<\/span>/i)?.[1] ?? "");
+    const imageUrl = decode(card.match(/<img[^>]+src="([^"]+)"/i)?.[1] ?? "");
+    const priceText = decode(card.match(/<span[^>]*>(₹[^<]+)<\/span>/i)?.[1] ?? "");
+    const details = location.match(/([\d,]+)\s*(?:km|किमी)[\s\S]*?\|\s*([^|]+)\|/i);
+    const brand = LUXURY_BRANDS.find((candidate) => new RegExp(`^\\d{4} ${candidate.replace("-", "[- ]")}`, "i").test(title));
+    if (!href || !title || !imageUrl || !priceText || !details || !brand || !/Bangalore/i.test(location)) continue;
+    const year = Number.parseInt(title.slice(0, 4), 10);
+    const model = title.replace(/^\d{4}\s+/, "").replace(new RegExp(`^${brand.replace("-", "[- ]")}\\s+`, "i"), "").split(" ").slice(0, 3).join(" ");
+    records.push({ sourceListingId: href.split("/").filter(Boolean).at(-1)!, url: `https://www.carwale.com${href}`, imageUrl, title, location, price: parsePrice(priceText), kilometres: Number.parseInt(details[1].replace(/,/g, ""), 10), fuel: details[2].trim(), year, brand, model });
+  }
+  return records;
+}
+
+async function importCarWale(env: Env) {
+  const now = new Date().toISOString();
+  const runId = `run-${crypto.randomUUID()}`;
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO sources (id, name, city, inventory_url, is_enabled) VALUES (?, ?, ?, ?, 1) ON CONFLICT(id) DO UPDATE SET is_enabled = 1").bind(CARWALE_SOURCE_ID, "CarWale", "Bengaluru", `${CARWALE_BASE}?${CARWALE_QUERY}`),
+    env.DB.prepare("INSERT INTO import_runs (id, source_id, status, started_at) VALUES (?, ?, ?, ?)").bind(runId, CARWALE_SOURCE_ID, "running", now),
+  ]);
+  let pagesRead = 0;
+  let listingsSeen = 0;
+  for (let page = 1; page <= 44; page += 1) {
+    const pagePath = page === 1 ? CARWALE_BASE : `${CARWALE_BASE}page-${page}/`;
+    const response = await fetch(`${pagePath}?${CARWALE_QUERY}`, { headers: { "User-Agent": "Driveworthy market research" } });
+    if (!response.ok) break;
+    const cars = parseCarWalePage(await response.text());
+    if (!cars.length) break;
+    pagesRead += 1;
+    listingsSeen += cars.length;
+    const statements: D1PreparedStatement[] = [];
+    for (const car of cars) {
+      const fingerprint = `${car.brand.toLowerCase()}|${car.model.toLowerCase()}|${car.year}|${car.kilometres}`;
+      const listingId = `vehicle-${hash(fingerprint)}`;
+      statements.push(
+        env.DB.prepare("INSERT INTO listings (id, fingerprint, brand, model, year, kilometres, fuel, price_lakh, image_url, status, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?, ?) ON CONFLICT(fingerprint) DO UPDATE SET price_lakh = excluded.price_lakh, image_url = excluded.image_url, last_seen_at = excluded.last_seen_at, status = 'available'").bind(listingId, fingerprint, car.brand, car.model, car.year, car.kilometres, car.fuel, car.price, car.imageUrl, now, now),
+        env.DB.prepare("INSERT INTO listing_sources (id, listing_id, source_id, source_listing_id, source_url, asking_price_lakh, seen_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(source_id, source_listing_id) DO UPDATE SET asking_price_lakh = excluded.asking_price_lakh, seen_at = excluded.seen_at").bind(`source-${hash(`${CARWALE_SOURCE_ID}|${car.sourceListingId}`)}`, listingId, CARWALE_SOURCE_ID, car.sourceListingId, car.url, car.price, now),
+      );
+    }
+    await env.DB.batch(statements);
+  }
+  await env.DB.batch([
+    env.DB.prepare("UPDATE sources SET last_completed_at = ? WHERE id = ?").bind(now, CARWALE_SOURCE_ID),
+    env.DB.prepare("UPDATE import_runs SET status = 'completed', pages_read = ?, listings_seen = ?, completed_at = ? WHERE id = ?").bind(pagesRead, listingsSeen, now, runId),
+  ]);
+  return { pagesRead, listingsSeen };
+}
+
 // Image security config. SVG sources with .svg extension auto-skip the
 // optimization endpoint on the client side (served directly, no proxy).
 // To route SVGs through the optimizer (with security headers), set
@@ -38,6 +114,15 @@ const worker = {
           return result.response();
         },
       }, allowedWidths);
+    }
+
+    if (url.pathname === "/api/import/carwale" && request.method === "POST") {
+      return Response.json(await importCarWale(env));
+    }
+
+    if (url.pathname === "/api/import/carwale" && request.method === "GET") {
+      const latest = await env.DB.prepare("SELECT status, pages_read, listings_seen, completed_at, message FROM import_runs WHERE source_id = ? ORDER BY started_at DESC LIMIT 1").bind(CARWALE_SOURCE_ID).first();
+      return Response.json(latest ?? { status: "not_started" });
     }
 
     return handler.fetch(request, env, ctx);
