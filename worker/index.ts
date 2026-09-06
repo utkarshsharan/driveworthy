@@ -116,7 +116,7 @@ const worker = {
       }, allowedWidths);
     }
 
-    if (url.pathname === "/api/import/carwale" && request.method === "POST") {
+    if (url.pathname === "/api/import/carwale" && (request.method === "POST" || url.searchParams.get("run") === "1")) {
       return Response.json(await importCarWale(env));
     }
 
