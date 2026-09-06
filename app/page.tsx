@@ -170,12 +170,42 @@ function scoreLabel(score: number) {
   return "Consider carefully";
 }
 
+const BODY_TYPES = ["SUV", "Sedan", "Coupe", "Hatchback", "Convertible"] as const;
+const FUEL_TYPES = ["Petrol", "Diesel", "Electric", "Hybrid"] as const;
+
+function bodyTypeFor(listing: Listing) {
+  const text = `${listing.model} ${listing.variant}`.toLowerCase();
+  if (/coupe|gran coupe|z4|cabriolet|convertible|spyder/.test(text)) return /cabriolet|convertible|spyder|z4/.test(text) ? "Convertible" : "Coupe";
+  if (/^x\d|^q\d|^xc\d|^gl|^gle|^gla|^glc|^gls|range rover|defender|discovery|cayenne|macan|nx|rx/.test(listing.model.toLowerCase())) return "SUV";
+  if (/mini|a-class|1 series|2 series active/.test(text)) return "Hatchback";
+  return "Sedan";
+}
+
+function monthlyEmi(principalLakh: number, annualRate: number, years: number) {
+  const months = Math.max(1, years * 12);
+  const monthlyRate = annualRate / 12 / 100;
+  if (!monthlyRate) return (principalLakh * 100000) / months;
+  return (principalLakh * 100000 * monthlyRate * (1 + monthlyRate) ** months) / ((1 + monthlyRate) ** months - 1);
+}
+
+function rupees(value: number) {
+  return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Math.round(value));
+}
+
 export default function Home() {
   const [brand, setBrand] = useState<Brand | "">("");
   const [model, setModel] = useState("");
   const [year, setYear] = useState("");
   const [kilometres, setKilometres] = useState("");
+  const [bodyType, setBodyType] = useState("");
+  const [fuelType, setFuelType] = useState("");
   const [source, setSource] = useState("");
+  const [sortBy, setSortBy] = useState("score");
+  const [downPayment, setDownPayment] = useState("15");
+  const [loanAmount, setLoanAmount] = useState("40");
+  const [interestRate, setInterestRate] = useState("10.5");
+  const [loanYears, setLoanYears] = useState("5");
+  const [maxMonthlyEmi, setMaxMonthlyEmi] = useState("");
   const [visibleCount, setVisibleCount] = useState(12);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertSaved, setAlertSaved] = useState(false);
@@ -235,19 +265,32 @@ export default function Home() {
       if (model && listing.model !== model) return false;
       if (year && listing.year < Number(year)) return false;
       if (kilometres && listing.kilometres > Number(kilometres)) return false;
+      if (bodyType && bodyTypeFor(listing) !== bodyType) return false;
+      if (fuelType && listing.fuel !== fuelType) return false;
       if (source && listing.source !== source) return false;
+      if (maxMonthlyEmi && monthlyEmi(Math.max(0, listing.price - Number(downPayment || 0)), Number(interestRate || 0), Number(loanYears || 1)) > Number(maxMonthlyEmi)) return false;
       return true;
-    }).sort((a, b) => b.score - a.score);
-  }, [allListings, brand, model, year, kilometres, source]);
+    }).sort((a, b) => {
+      if (sortBy === "year-new") return b.year - a.year;
+      if (sortBy === "kms-low") return a.kilometres - b.kilometres;
+      if (sortBy === "kms-high") return b.kilometres - a.kilometres;
+      if (sortBy === "price-low") return a.price - b.price;
+      if (sortBy === "price-high") return b.price - a.price;
+      return b.score - a.score;
+    });
+  }, [allListings, brand, model, year, kilometres, bodyType, fuelType, source, sortBy, downPayment, interestRate, loanYears, maxMonthlyEmi]);
 
-  useEffect(() => setVisibleCount(12), [brand, model, year, kilometres, source]);
+  useEffect(() => setVisibleCount(12), [brand, model, year, kilometres, bodyType, fuelType, source, sortBy, maxMonthlyEmi]);
 
   const clearFilters = () => {
     setBrand("");
     setModel("");
     setYear("");
     setKilometres("");
+    setBodyType("");
+    setFuelType("");
     setSource("");
+    setMaxMonthlyEmi("");
   };
 
   const submitAlert = (event: FormEvent<HTMLFormElement>) => {
@@ -255,7 +298,7 @@ export default function Home() {
     setAlertSaved(true);
   };
 
-  const activeFilterText = [source, brand, model, year && `${year}+`, kilometres && `under ${Number(kilometres).toLocaleString("en-IN")} km`]
+  const activeFilterText = [source, brand, model, bodyType, fuelType, year && `${year}+`, kilometres && `under ${Number(kilometres).toLocaleString("en-IN")} km`, maxMonthlyEmi && `under ₹${rupees(Number(maxMonthlyEmi))}/mo`]
     .filter(Boolean)
     .join(" · ");
 
@@ -263,14 +306,14 @@ export default function Home() {
     <main>
       <header className="site-header">
         <a className="brand-mark" href="#top" aria-label="Driveworthy home">
-          <span className="brand-symbol" aria-hidden="true"><i /><i /><i /></span>
+          <span className="brand-symbol" aria-hidden="true"><i /><i /></span>
           <span>DRIVEWORTHY</span>
         </a>
         <nav className="desktop-nav" aria-label="Primary navigation">
           <a href="#discover">Discover</a>
           <a href="#scoring">How scoring works</a>
           <button className="nav-alert" type="button" onClick={() => { setAlertSaved(false); setAlertOpen(true); }}>
-            Set an alert <span aria-hidden="true">↗</span>
+            <span className="bell" aria-hidden="true">◌</span> Set an alert
           </button>
         </nav>
       </header>
@@ -278,9 +321,9 @@ export default function Home() {
       <section className="hero" id="top">
         <div className="hero-content">
           <p className="eyebrow light">Bengaluru · Pre-owned luxury cars</p>
-          <h1>Buy the car.<br />Not the sales pitch.</h1>
-          <p className="hero-copy">One clear view of the market, ranked by value, condition signals and confidence—not by who paid to be first.</p>
-          <a className="hero-cta" href="#discover">See the best deals <span aria-hidden="true">↓</span></a>
+          <h1>Bengaluru’s luxury<br />market, clearly ranked.</h1>
+          <p className="hero-copy">Find the right car with price, condition and confidence in one view.</p>
+          <a className="hero-cta" href="#discover">Explore the market <span aria-hidden="true">↓</span></a>
         </div>
         <p className="hero-status"><span /> Independent market view · no promoted rankings</p>
       </section>
@@ -329,10 +372,44 @@ export default function Home() {
               <option value="80000">Under 80,000 km</option>
             </select>
           </label>
+          <label>
+            <span>Body type</span>
+            <select value={bodyType} onChange={(event) => setBodyType(event.target.value)}>
+              <option value="">All types</option>
+              {BODY_TYPES.map((item) => <option value={item} key={item}>{item}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Fuel type</span>
+            <select value={fuelType} onChange={(event) => setFuelType(event.target.value)}>
+              <option value="">Any fuel</option>
+              {FUEL_TYPES.map((item) => <option value={item} key={item}>{item}</option>)}
+            </select>
+          </label>
           <button className="filter-action" type="button" onClick={() => document.getElementById("results")?.scrollIntoView({ behavior: "smooth" })}>
             Show ranked cars <span aria-hidden="true">→</span>
           </button>
         </div>
+
+        <section className="finance-calculator" aria-labelledby="finance-title">
+          <div className="finance-intro">
+            <p className="eyebrow">Finance planner</p>
+            <h3 id="finance-title">Know the monthly number before you shortlist.</h3>
+            <p>Pre-owned car loans commonly sit around <strong>9.5%–14.5% p.a.</strong>, subject to your profile, vehicle age and lender.</p>
+          </div>
+          <div className="finance-fields">
+            <label><span>Down payment</span><div><b>₹</b><input inputMode="decimal" value={downPayment} onChange={(event) => setDownPayment(event.target.value.replace(/[^0-9.]/g, ""))} /><em>lakh</em></div></label>
+            <label><span>Loan amount</span><div><b>₹</b><input inputMode="decimal" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value.replace(/[^0-9.]/g, ""))} /><em>lakh</em></div></label>
+            <label><span>Interest rate</span><div><input inputMode="decimal" value={interestRate} onChange={(event) => setInterestRate(event.target.value.replace(/[^0-9.]/g, ""))} /><em>% p.a.</em></div></label>
+            <label><span>Term</span><div><select value={loanYears} onChange={(event) => setLoanYears(event.target.value)}><option value="3">3 years</option><option value="4">4 years</option><option value="5">5 years</option><option value="6">6 years</option><option value="7">7 years</option></select></div></label>
+          </div>
+          <div className="finance-result">
+            <span>Estimated EMI</span>
+            <strong>₹{rupees(monthlyEmi(Number(loanAmount || 0), Number(interestRate || 0), Number(loanYears || 1)))}</strong>
+            <small>per month</small>
+            <button type="button" onClick={() => setMaxMonthlyEmi(String(Math.round(monthlyEmi(Number(loanAmount || 0), Number(interestRate || 0), Number(loanYears || 1)))))}>Show cars at this EMI <span aria-hidden="true">→</span></button>
+          </div>
+        </section>
 
         <div className="source-strip" aria-label="Market sources">
           <span>Connected now</span>
@@ -351,7 +428,8 @@ export default function Home() {
           </div>
           <div className="results-meta">
             <span>{filteredListings.length} cars · {new Set(filteredListings.map((listing) => listing.source)).size} sources</span>
-            {(brand || model || year || kilometres || source) && <button type="button" onClick={clearFilters}>Clear filters</button>}
+            <label className="sort-control"><span>Sort by</span><select value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="score">Best deal score</option><option value="year-new">Latest year</option><option value="kms-low">Kilometres: low to high</option><option value="kms-high">Kilometres: high to low</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></label>
+            {(brand || model || year || kilometres || bodyType || fuelType || source || maxMonthlyEmi) && <button type="button" onClick={clearFilters}>Clear filters</button>}
           </div>
         </div>
 
@@ -394,6 +472,7 @@ export default function Home() {
                 <div className="price-row">
                   <div><span>Asking price</span><strong>{money(listing.price)}</strong></div>
                   <div><span>Estimated fair range</span><strong>{money(listing.fairLow)}–{money(listing.fairHigh)}</strong></div>
+                  <div className="card-emi"><span>Est. EMI*</span><strong>₹{rupees(monthlyEmi(Math.max(0, listing.price - Number(downPayment || 0)), Number(interestRate || 0), Number(loanYears || 1)))}/mo</strong></div>
                 </div>
                 <div className="signals">
                   <p className="positive"><span aria-hidden="true">+</span>{listing.positive}</p>
@@ -446,11 +525,11 @@ export default function Home() {
           <p className="eyebrow light">Don’t keep refreshing six websites</p>
           <h2>Tell us the car. We’ll watch the market.</h2>
         </div>
-        <button type="button" onClick={() => { setAlertSaved(false); setAlertOpen(true); }}>Set a personalised alert <span aria-hidden="true">↗</span></button>
+        <button type="button" onClick={() => { setAlertSaved(false); setAlertOpen(true); }}><span className="alert-button-icon" aria-hidden="true">◌</span> Set a personalised alert <span className="button-arrow" aria-hidden="true">→</span></button>
       </section>
 
       <footer>
-        <a className="brand-mark footer-brand" href="#top"><span className="brand-symbol" aria-hidden="true"><i /><i /><i /></span><span>DRIVEWORTHY</span></a>
+        <a className="brand-mark footer-brand" href="#top"><span className="brand-symbol" aria-hidden="true"><i /><i /></span><span>DRIVEWORTHY</span></a>
         <p>Independent intelligence for pre-owned luxury cars in Bengaluru.</p>
         <p>Listing rights remain with their original sources.</p>
       </footer>
