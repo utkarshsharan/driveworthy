@@ -37,6 +37,12 @@ const MODEL_OPTIONS: Record<string, string[]> = {
   Lexus: ["ES", "NX", "RX", "LS"],
   Porsche: ["Cayenne", "Panamera"],
   "Land Rover": ["Defender", "Range Rover Velar"],
+  Lamborghini: ["Huracan", "Urus", "Revuelto", "Aventador"],
+  Maserati: ["Ghibli", "Levante", "Grecale", "Quattroporte", "MC20"],
+  "Aston Martin": ["Vantage", "DBX", "DB11", "DB12", "DBS"],
+  Ferrari: ["Roma", "Portofino", "F8", "296 GTB", "Purosangue"],
+  Bentley: ["Continental GT", "Bentayga", "Flying Spur"],
+  "Rolls-Royce": ["Ghost", "Cullinan", "Wraith", "Dawn"],
 };
 
 const CORE_LISTINGS: Listing[] = [
@@ -372,6 +378,11 @@ export default function Home() {
     setFinanceApplied(false);
   };
 
+  const clearEmiFilter = () => {
+    setMaxMonthlyEmi("");
+    setFinanceApplied(false);
+  };
+
   const submitAlert = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAlertSaved(true);
@@ -498,6 +509,7 @@ export default function Home() {
             <strong aria-live="polite">₹{rupees(plannerEmi)}</strong>
             <small>per month</small>
             <button type="button" onClick={() => { setMaxMonthlyEmi(String(Math.round(plannerEmi))); setFinanceApplied(true); track("finance_filter"); document.getElementById("results")?.scrollIntoView({ behavior: "smooth" }); }}>{financeApplied ? "EMI filter is active" : "Show cars at this EMI"} <span aria-hidden="true">→</span></button>
+            {financeApplied && <button className="finance-reset" type="button" onClick={clearEmiFilter}>Clear EMI filter</button>}
           </div>
         </section>
 

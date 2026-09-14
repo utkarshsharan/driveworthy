@@ -97,6 +97,7 @@ a { color: inherit; text-decoration: none; }
 .finance-result { align-self: stretch; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding-left: 24px; border-left: 1px solid #414853; }
 .finance-result > span, .finance-result small { color: #adb4bf; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }.finance-result strong { margin-top: 5px; font-size: 31px; line-height: 1; letter-spacing: -.05em; }.finance-result small { margin-top: 6px; }
 .finance-result button { display: inline-flex; align-items: center; gap: 13px; margin-top: 17px; padding: 0; border: 0; background: transparent; color: #62acff; font-size: 12px; font-weight: 680; cursor: pointer; }.finance-result button:hover { color: #fff; }
+.finance-result .finance-reset { margin-top: 8px; color: #adb4bf; text-decoration: underline; text-underline-offset: 3px; }.finance-result .finance-reset:hover { color: #fff; }
 .source-strip { display: flex; align-items: center; gap: 22px; padding: 18px 0; overflow-x: auto; white-space: nowrap; color: #787c82; font-size: 12px; }
 .source-strip span { color: var(--ink); text-transform: uppercase; letter-spacing: .12em; font-size: 10px; font-weight: 720; }
 .source-strip button { flex: 0 0 auto; border: 1px solid transparent; padding: 6px 8px; background: transparent; color: #555961; font: inherit; font-weight: 590; cursor: pointer; }
