@@ -32,9 +32,9 @@ a { color: inherit; text-decoration: none; }
 }
 
 .brand-mark { display: inline-flex; align-items: center; gap: 13px; font-size: 14px; font-weight: 720; letter-spacing: .15em; }
-.brand-symbol { width: 29px; height: 29px; display: block; position: relative; flex: 0 0 29px; border: 1.5px solid #16191e; border-radius: 50%; overflow: hidden; }
-.brand-symbol i { display: block; position: absolute; inset: -1px 50% -1px -1px; background: #101318; transform: skewX(-18deg); }
-.brand-symbol i:nth-child(2) { inset: -1px -1px -1px 50%; background: var(--blue); transform: skewX(-18deg); }
+.brand-symbol { width: 29px; height: 29px; display: block; position: relative; flex: 0 0 29px; border: 2px solid #11151b; border-radius: 50%; background: radial-gradient(circle at center, #f4f5f6 0 13%, #222933 14% 19%, transparent 20%), conic-gradient(from 0deg, #e4e7eb 0 7%, #29313b 8% 16%, #e4e7eb 17% 24%, #29313b 25% 33%, #e4e7eb 34% 41%, #29313b 42% 50%, #e4e7eb 51% 58%, #29313b 59% 67%, #e4e7eb 68% 75%, #29313b 76% 84%, #e4e7eb 85% 92%, #29313b 93% 100%); box-shadow: inset 0 0 0 3px #9299a1; }
+.brand-symbol::after { content: ""; position: absolute; width: 7px; height: 14px; top: 6px; right: -3px; border-radius: 3px 5px 5px 3px; background: #d71f2d; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.brand-symbol i { display: none; }
 .bell, .alert-button-icon { display: inline-grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid currentColor; border-radius: 9px 9px 7px 7px; font-size: 0; position: relative; }
 .bell::after, .alert-button-icon::after { content: ""; position: absolute; bottom: -4px; width: 4px; height: 4px; background: currentColor; border-radius: 50%; }
 .desktop-nav { height: 100%; display: flex; align-items: center; gap: 34px; font-size: 14px; }
