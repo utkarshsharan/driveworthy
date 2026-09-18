@@ -52,6 +52,13 @@ function parsePrice(value: string) {
   return /crore/i.test(value) ? amount * 100 : amount;
 }
 
+function canonicalModel(brand: string, model: string) {
+  const value = model.trim().replace(/\s+/g, " ");
+  if (brand !== "BMW") return value;
+  const series = value.match(/^([23567])(?:\s*-?\s*series)?$/i)?.[1];
+  return series ? `${series} Series` : value;
+}
+
 function parseCarWalePage(html: string): ImportedCar[] {
   const cards = [...html.matchAll(/<li class="o-C o-jA[^>]*>([\s\S]*?)<\/li>/g)].map((match) => match[1]);
   const records: ImportedCar[] = [];
@@ -66,7 +73,8 @@ function parseCarWalePage(html: string): ImportedCar[] {
     if (!href || !title || !imageUrl || !priceText || !details || !brand || !/Bangalore/i.test(location)) continue;
     const year = Number.parseInt(title.slice(0, 4), 10);
     const modelWords = title.replace(/^\d{4}\s+/, "").replace(new RegExp(`^${brand.replace("-", "[- ]")}\\s+`, "i"), "").split(" ");
-    const model = brand === "Land Rover" && modelWords.slice(0, 2).join(" ").toLowerCase() === "range rover" ? modelWords.slice(0, 3).join(" ") : modelWords[0];
+    const rawModel = brand === "Land Rover" && modelWords.slice(0, 2).join(" ").toLowerCase() === "range rover" ? modelWords.slice(0, 3).join(" ") : modelWords[0];
+    const model = canonicalModel(brand, rawModel);
     records.push({ sourceListingId: href.split("/").filter(Boolean).at(-1)!, url: `https://www.carwale.com${href}`, imageUrl, title, location, price: parsePrice(priceText), kilometres: Number.parseInt(details[1].replace(/,/g, ""), 10), fuel: details[2].trim(), year, brand, model });
   }
   return records;
@@ -81,7 +89,8 @@ function parseCarWaleStocks(payload: { stocks?: Array<Record<string, unknown>> }
     const year = Number(stock.makeYear);
     if (!brand || !href || !Number.isFinite(year) || !/Bangalore/i.test(String(stock.cityName ?? ""))) continue;
     const modelWords = title.replace(new RegExp(`^${brand.replace("-", "[- ]")}\\s+`, "i"), "").split(" ");
-    const model = brand === "Land Rover" && modelWords.slice(0, 2).join(" ").toLowerCase() === "range rover" ? modelWords.slice(0, 3).join(" ") : modelWords[0];
+    const rawModel = brand === "Land Rover" && modelWords.slice(0, 2).join(" ").toLowerCase() === "range rover" ? modelWords.slice(0, 3).join(" ") : modelWords[0];
+    const model = canonicalModel(brand, rawModel);
     records.push({
       sourceListingId: href.split("/").filter(Boolean).at(-1)!,
       url: `https://www.carwale.com${href}`,
@@ -180,7 +189,7 @@ async function importSpinny(env: Env) {
       fuel: titleCase(car.fuel_type ?? ""),
       year: car.make_year,
       brand,
-      model: car.model,
+      model: canonicalModel(brand, car.model),
     } satisfies ImportedCar];
   });
 

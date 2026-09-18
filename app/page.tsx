@@ -72,10 +72,18 @@ const CORE_LISTINGS: Listing[] = [
 
 type SourceListing = Omit<Listing, "fairLow" | "fairHigh" | "transmission" | "confidence" | "positive" | "concern" | "freshness"> & Partial<Pick<Listing, "fairLow" | "fairHigh" | "transmission" | "confidence" | "positive" | "concern" | "freshness">>;
 
+function canonicalModel(brand: string, model: string) {
+  const value = model.trim().replace(/\s+/g, " ");
+  if (brand !== "BMW") return value;
+  const series = value.match(/^([23567])(?:\s*-?\s*series)?$/i)?.[1];
+  return series ? `${series} Series` : value;
+}
+
 function sourceListing(listing: SourceListing): Listing {
   const score = listing.score;
   return {
     ...listing,
+    model: canonicalModel(listing.brand, listing.model),
     transmission: listing.transmission ?? "Automatic",
     fairLow: listing.fairLow ?? Number((listing.price * 0.97).toFixed(2)),
     fairHigh: listing.fairHigh ?? Number((listing.price * 1.08).toFixed(2)),
@@ -342,7 +350,7 @@ export default function Home() {
   const filteredListings = useMemo(() => {
     return allListings.filter((listing) => {
       if (brand && listing.brand !== brand) return false;
-      if (model && listing.model !== model) return false;
+      if (model && canonicalModel(listing.brand, listing.model) !== model) return false;
       if (year && listing.year < Number(year)) return false;
       if (kilometres && listing.kilometres > Number(kilometres)) return false;
       if (bodyType && bodyTypeFor(listing) !== bodyType) return false;
